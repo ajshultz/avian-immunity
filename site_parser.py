@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import os
 import sys
 from Bio import Phylo
@@ -8,6 +9,8 @@ from Bio.Phylo.PAML import _parse_codeml
 from Bio.Phylo.Consensus import _BitString
 import io
 import re
+
+
 
 #should refactor this into an actual module I guess
 #Original code from Tim Sackton
@@ -67,9 +70,9 @@ def main():
     
     print("Done getting files.")
     with open(resfile_foroutput, 'w') as ofile:
-        print("hog", "model", "treenum", "species_tree", "newick_string", "model_num", "lnl", "treelen", "kappa", "omega", sep="\t", end="\n", file=ofile, flush=True)
-        results = parse_hogs(hogs,"site",["paml"],True,True)
-        print_results(results, ofile, "site")
+        print("hog", "model", "treenum", "species_tree", "newick_string", "model_num", "lnl", "treelen", "kappa", "omega", sep="\t", end="\n", file=ofile)
+        results = parse_hogs(hogs,"sites",["."],True,True)
+        print_results(results, ofile, "sites")
 
 if __name__ == "__main__":
     main()

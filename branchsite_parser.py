@@ -2,6 +2,7 @@
 
 #Code from Tim Sackton
 
+from __future__ import print_function
 import os
 import sys
 from Bio import Phylo
@@ -10,6 +11,12 @@ from Bio.Phylo.PAML import _parse_codeml
 from Bio.Phylo.Consensus import _BitString
 import io
 import re
+
+#Included code to work with python 2.
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 
 def _bitstrs(tree,term_names):
     #function from http://biopython.org/wiki/Phylo
@@ -47,7 +54,7 @@ def classify_tree (tree):
         if regex.search(term.name):
             term.name = term.name.replace("#1","")
             if len(term.name) > 6:
-                genetree_match = genetree_names.search(term.name):
+                genetree_match = genetree_names.search(term.name)
                 if genetree_match:
                     term.name = genetree_match.group(1)
             foreground.append(term.name)
@@ -132,7 +139,7 @@ def parse_multitree_multimodel_results (file):
             except KeyError:
                 paml_strings[tree_index] = header + subheader + "\nTREE" + pieces[i]
     for tree_num in paml_strings:
-        paml_results[tree_num] = parse_codeml_string(io.StringIO(paml_strings[tree_num]))
+        paml_results[tree_num] = parse_codeml_string(io.StringIO(paml_strings[tree_num].decode('unicode-escape')))
 
     return(paml_results)
 
@@ -141,14 +148,14 @@ def parse_hogs(hoglist,model,input_dirs,verbose=True,multisite=False):
     final_results = {}
     for hog in hoglist:
         if verbose:
-            print("Working on", hog, flush=True)
+            print("Working on", hog)
             
         toppath = '{:0>4}'.format(int(hog) % 100)
-        # 0000/100/100.codeml.ancrec.ctl.out/
-        fullpath = toppath + "/" + hog + "/" + hog + ".codeml." + model + ".ctl.out"
+        # 0000/100/
+        fullpath = toppath + "/" + hog + "/"
         for pamldir in input_dirs:
-            results_file = pamldir + "/" + fullpath + "/" + model + ".out"
-            control_file = pamldir + "/" + fullpath + "/" + hog + ".codeml." + model + ".ctl"
+            results_file = pamldir + "/" + fullpath + model + ".out"
+            control_file = pamldir + "/" + fullpath + hog + ".codeml." + model + ".ctl"
             #get species tree
             sptreepath = pamldir + "/" + toppath + "/" + hog + "/" + hog + ".final_spt.nwk"
             try:
@@ -163,7 +170,7 @@ def parse_hogs(hoglist,model,input_dirs,verbose=True,multisite=False):
                 print("Couldn't parse file for", hog, "at", pamldir + "/" + fullpath)
                 continue
             
-            tree_file = pamldir + "/" + fullpath + "/" + cml.tree
+            tree_file = pamldir + "/" + fullpath + cml.tree
             #now process
             parsed_trees = parse_trees(tree_file,species_tree)
             try:
@@ -176,6 +183,7 @@ def parse_hogs(hoglist,model,input_dirs,verbose=True,multisite=False):
                 continue
             
             #check that we have a result for each tree
+            '''
             if len(parsed_trees) < len(parsed_results):
                 print("Warning, too few trees for number of results for", hog, "in", results_file)
                 continue
@@ -183,7 +191,8 @@ def parse_hogs(hoglist,model,input_dirs,verbose=True,multisite=False):
                 #remove trees that aren't in results
                 trimmed_trees = {x:parsed_trees[x] for x in parsed_results.keys()}
                 parsed_trees = trimmed_trees
-                
+            '''
+            
             if hog in final_results:
                 #append
                 cur_len = len(final_results[hog]['trees'])
