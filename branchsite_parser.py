@@ -172,7 +172,11 @@ def parse_hogs(hoglist,model,input_dirs,verbose=True,multisite=False):
             
             tree_file = pamldir + "/" + fullpath + cml.tree
             #now process
-            parsed_trees = parse_trees(tree_file,species_tree)
+            try:
+            	parsed_trees = parse_trees(tree_file,species_tree)
+            except FileNotFoundError:
+            	print("No trees for",hog,"at",pamldir,"/"+fullpath)
+            	continue
             try:
                 if multisite:
                     parsed_results = parse_multitree_multimodel_results(results_file)
