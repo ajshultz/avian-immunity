@@ -38,11 +38,15 @@ def print_results(results, handle, model):
                     #m1/m2 case, use site classes 
                     res_omega = None
                     res_omegas = res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('site classes', {})
-                    for sc in sorted(res_omegas.keys(), key=int):
-                        if res_omega is None:
-                            res_omega = str(round(res_omegas[sc]['proportion'],3)) + ":" + res_omegas[sc]['omega']
-                        else:
-                            res_omega += "," + str(round(res_omegas[sc]['proportion'],3)) + ":" + res_omegas[sc]['omega']
+                    try:
+                    	for sc in sorted(res_omegas.keys(), key=int):
+                        	if res_omega is None:
+                          	  res_omega = str(round(res_omegas[sc]['proportion'],3)) + ":" + res_omegas[sc]['omega']
+                       		else:
+                         	   res_omega += "," + str(round(res_omegas[sc]['proportion'],3)) + ":" + res_omegas[sc]['omega']
+                    except AttributeError:
+                    	print(hog)
+                    	continue
                 elif modelnum == 7:
                     #m7 case
                     m7_p = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('p')),3))
@@ -66,7 +70,7 @@ def main():
     hogfile_toparse = sys.argv[1]
     resfile_foroutput = sys.argv[2]
     with open(hogfile_toparse) as hfile:
-        hogs=[line.rstrip("\n") for line in hfile]
+        hogs=[line.strip() for line in hfile]
     
     print("Done getting files.")
     with open(resfile_foroutput, 'w') as ofile:
