@@ -20,6 +20,18 @@ colnames(curGenes)[3] <-"ensembl_gene_id"
 curGenes_conv <- merge(curGenes,convert_curGenes)
 innateGenes_conv <- merge(innateGenes,convert_innateGenes)
 
+#Add NCBI Gene IDs from galGal bed files combined based on genome position
+galGal_posIDs <- read.table("~/Dropbox/BirdImmuneGeneEvolution/galGal_ncbi_ens_id_transtable.txt",header=T)
+colnames(galGal_posIDs) <- c("NCBI_entrez_galGal","ensembl_gene_id")
+rownames(as.character(galGal_posIDs)) <- galGal_posIDs$ensembl_gene_id
+
+curGenes_conv$NCBI_entrez_galGal <- galGal_posIDs[as.character(curGenes_conv$ensembl_gene_id),"NCBI_entrez_galGal"]
+innateGenes_conv$NCBI_entrez_galGal <- galGal_posIDs[as.character(innateGenes_conv$ensembl_gene_id),"NCBI_entrez_galGal"]
+
+#looks like it fills in at least a few NAs
+
+
 write.csv(curGenes_conv,file="~/Dropbox/BirdImmuneGeneEvolution/CuratedAvianImmuneGenes_NCBINums.csv")
 write.csv(innateGenes_conv,file="~/Dropbox/BirdImmuneGeneEvolution/InnateImmuneDB_NCBINums.csv")
+
 
