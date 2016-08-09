@@ -1,7 +1,7 @@
 setwd("~/Dropbox/BirdImmuneGeneEvolution")
 require(ggplot2)
 
-paml_res <- read.table("~/AvianImmuneRes/PAML/paml_res_allhogs_rewrite.txt",header=T)
+paml_res <- read.table("~/Dropbox/BirdImmuneGeneEvolution/PAML/paml_res_allhogs_rewrite.txt",header=T)
 
 hog_ids <- read.table("~/Dropbox/BirdImmuneGeneEvolution/new_hog_list.txt")
 colnames(hog_ids) <- c("HOG2_HogID","NCBI_ID","entrezgene","sp")
@@ -137,12 +137,12 @@ nrow(paml_pval_allgenes[is.na(paml_pval_allgenes$Omega_m8),])
 paml_pval_allgenes_ncbi <- merge(hog_ids_gg,paml_pval_allgenes,by="hog")
 paml_pval_allgenes_ncbi$entrezgene <- as.character(paml_pval_allgenes_ncbi$entrezgene)
 
-write.csv(paml_pval_allgenes_ncbi,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/allgenePAML_Pvals.csv")
+#write.csv(paml_pval_allgenes_ncbi,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/allgenePAML_Pvals.csv")
 
 #Write file with all entrezgenes for all sig. m1m2 reactions.
 allgenem1m2 <- paml_pval_allgenes_ncbi[paml_pval_allgenes_ncbi $FDRPval_m1m2<0.05,"entrezgene"]
 allgenem1m2 <- allgenem1m2[!is.na(allgenem1m2)]
-write.csv(allgenem1m2,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/EntrezGeneID_Allm1m2SigGenes.csv",row.names=F,quote=F)
+#write.csv(allgenem1m2,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/EntrezGeneID_Allm1m2SigGenes.csv",row.names=F,quote=F)
 
 
 immune$match <- immune$entrezgene %in% paml_pval_allgenes_ncbi$entrezgene
@@ -169,8 +169,8 @@ paml_pval_innatedb <- merge(paml_pval_allgenes_ncbi,innateDB,by="entrezgene",inc
 paml_pval_innatedb <- paml_pval_innatedb[!duplicated(paml_pval_innatedb$InnateDBID),]
 #694 results for the innatedb.
 
-write.csv(paml_pval_immune,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/Paml_Pvals_CuratedAvianImmuneGenes.csv")
-write.csv(paml_pval_innatedb,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/Paml_Pvals_InnateImmuneDB.csv")
+#write.csv(paml_pval_immune,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/Paml_Pvals_CuratedAvianImmuneGenes.csv")
+#write.csv(paml_pval_innatedb,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/Paml_Pvals_InnateImmuneDB.csv")
 
 
 
@@ -202,7 +202,7 @@ immunecounts$prop_m1m2selectOmega <- round(immunecounts$m1m2selectOmega/immuneco
 immunecounts$prop_m7m8selectOmega <- round(immunecounts$m7m8selectOmega/immunecounts$m8modelpresent,digits=3)
 
 
-write.csv(immunecounts,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/InitialSignificanceResults.csv")
+#write.csv(immunecounts,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/InitialSignificanceResults.csv")
 
 immunecounts$m1m2notselect <- immunecounts$m2modelpresent-immunecounts$m1m2select
 immunecounts$m7m8notselect <- immunecounts$m8modelpresent-immunecounts$m7m8select
@@ -246,5 +246,93 @@ fisher.test(immunecounts[c("Receptor","ImmuneGenes"),c("m7m8selectOmega","m7m8no
 #Signaling vs. immune genes
 fisher.test(immunecounts[c("Signaling","ImmuneGenes"),c("m7m8selectOmega","m7m8notselectOmega")])
 
-barplot(immunecounts$prop_m1m2select,names.arg=rownames(immunecounts))
-barplot(immunecounts$prop_m7m8select,names.arg=rownames(immunecounts))
+
+
+
+#Versus all genes?
+#Fisher's Exact test for signficance of different immune classes vs. all immune genes with the m1 vs. m2 model
+#Effector vs. immune genes
+fisher.test(immunecounts[c("Effector","AllGenes"),c("m1m2select","m1m2notselect")])
+#Receptor vs. immune genes
+fisher.test(immunecounts[c("Receptor","AllGenes"),c("m1m2select","m1m2notselect")])
+#Signaling vs. immune genes
+fisher.test(immunecounts[c("Signaling","AllGenes"),c("m1m2select","m1m2notselect")])
+#None are signficant
+
+#Fisher's Exact test for signficance of different immune classes vs. all immune genes with the m7 vs. m8 model
+#Effector vs. immune genes
+fisher.test(immunecounts[c("Effector","AllGenes"),c("m7m8select","m7m8notselect")])
+#Receptor vs. immune genes
+fisher.test(immunecounts[c("Receptor","AllGenes"),c("m7m8select","m7m8notselect")])
+#Signaling vs. immune genes
+fisher.test(immunecounts[c("Signaling","AllGenes"),c("m7m8select","m7m8notselect")])
+
+
+#Fisher's Exact test for signficance of different immune classes vs. all immune genes with the m1 vs. m2 model with omega > 2 and with at least 5% of sites
+#Effector vs. immune genes
+fisher.test(immunecounts[c("Effector","AllGenes"),c("m1m2selectOmega","m1m2notselectOmega")])
+#Receptor vs. immune genes
+fisher.test(immunecounts[c("Receptor","AllGenes"),c("m1m2selectOmega","m1m2notselectOmega")])
+#Signaling vs. immune genes
+fisher.test(immunecounts[c("Signaling","AllGenes"),c("m1m2selectOmega","m1m2notselectOmega")])
+#None are signficant
+
+#Fisher's Exact test for signficance of different immune classes vs. all immune genes with the m7 vs. m8 model with omega > 2 and with at least 5% of sites
+#Effector vs. immune genes
+fisher.test(immunecounts[c("Effector","AllGenes"),c("m7m8selectOmega","m7m8notselectOmega")])
+#Receptor vs. immune genes
+fisher.test(immunecounts[c("Receptor","AllGenes"),c("m7m8selectOmega","m7m8notselectOmega")])
+#Signaling vs. immune genes
+fisher.test(immunecounts[c("Signaling","AllGenes"),c("m7m8selectOmega","m7m8notselectOmega")])
+
+
+
+barplot(immunecounts[c("ImmuneGenes","Receptor","Signaling","Effector"),"prop_m1m2select"],names.arg=c("All Immune(140)","Receptor(50)","Signaling(41)","Effector(46)"), las=2)
+
+
+
+icp <- immunecounts[c("ImmuneGenes","Receptor","Signaling","Effector"),]
+icp[,"type"] <- rownames(icp)
+icp$type <- factor(icp$type,levels=c("ImmuneGenes","Receptor","Signaling","Effector"))
+
+ggplot(data=icp,aes(type,prop_m1m2select)) + geom_bar(stat="identity",fill="darkorchid4") + geom_hline(yintercept=immunecounts["AllGenes","prop_m1m2select"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M1 vs. M2")
+
+ggplot(data=icp,aes(type,prop_m1m2selectOmega)) + geom_bar(stat="identity",fill="darkorchid4") + geom_hline(yintercept=immunecounts["AllGenes","prop_m1m2selectOmega"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M1 vs. M2")
+
+ggplot(data=icp,aes(type,prop_m7m8select)) + geom_bar(stat="identity",fill="darkorchid4") + geom_hline(yintercept=immunecounts["AllGenes","prop_m7m8select"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M7 vs. M8")
+
+ggplot(data=icp,aes(type,prop_m7m8selectOmega)) + geom_bar(stat="identity",fill="darkorchid4") + geom_hline(yintercept=immunecounts["AllGenes","prop_m7m8selectOmega"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M7 vs. M8")
+
+
+#Compare omega values across immune classes:
+immune_omega <- paml_pval_immune[paml_pval_immune$Class == "Receptor" | paml_pval_immune$Class == "Effector" | paml_pval_immune$Class == "Signaling",c("FDRPval_m1m2","FDRPval_m7m8","Omega_m2","Omega_m8","Class")]
+for (i in 1:nrow(immune_omega)){
+	if (!is.na(immune_omega[i,"FDRPval_m1m2"]) & immune_omega[i,"FDRPval_m1m2"]>0.05){
+		immune_omega[i,"Omega_m2"] <- 1
+	}
+	if (!is.na(immune_omega[i,"FDRPval_m7m8"]) & immune_omega[i,"FDRPval_m7m8"]>0.05){
+		immune_omega[i,"Omega_m8"] <- 1
+	}
+
+}
+
+immune_omega_all <- immune_omega
+immune_omega_all$Class <- rep("ImmuneGenes",nrow(immune_omega))
+
+immune_omega <- rbind(immune_omega,immune_omega_all)
+
+immune_omega$Class <- factor(immune_omega$Class, levels=c("ImmuneGenes","Receptor","Signaling","Effector"))
+
+ggplot(data=immune_omega, aes(Class,Omega_m2)) + geom_boxplot(fill="darkorchid4") + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Omega (dN/dS) Selected") + ggtitle("M2 Model")
+
+ggplot(data=immune_omega, aes(Class,Omega_m8)) + geom_boxplot(fill="darkorchid4") + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Omega (dN/dS) Selected") + ggtitle("M8 Model")
+
+ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m2"],immune_omega[immune_omega$Class=="Receptor","Omega_m2"])
+ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m2"],immune_omega[immune_omega$Class=="Signaling","Omega_m2"])
+ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m2"],immune_omega[immune_omega$Class=="Effector","Omega_m2"])
+
+ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m8"],immune_omega[immune_omega$Class=="Receptor","Omega_m8"])
+ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m8"],immune_omega[immune_omega$Class=="Signaling","Omega_m8"])
+ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m8"],immune_omega[immune_omega$Class=="Effector","Omega_m8"])
+
+
