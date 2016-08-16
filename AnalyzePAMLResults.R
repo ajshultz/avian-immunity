@@ -128,6 +128,8 @@ paml_pval_allgenes$FDRPval_m7m8 <- p.adjust(paml_pval_allgenes$PVal_m7m8,method=
 
 paml_pval_allgenes$hog <- rownames(paml_pval_allgenes)
 
+save(paml_pval_allgenes,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/paml_pvals_allgenes.RDat")
+
 #How many hogs didn't finish model m2 or m8?
 nrow(paml_pval_allgenes[is.na(paml_pval_allgenes$Omega_m2),])
 nrow(paml_pval_allgenes[is.na(paml_pval_allgenes$Omega_m8),])
@@ -289,19 +291,24 @@ fisher.test(immunecounts[c("Signaling","AllGenes"),c("m7m8selectOmega","m7m8nots
 
 barplot(immunecounts[c("ImmuneGenes","Receptor","Signaling","Effector"),"prop_m1m2select"],names.arg=c("All Immune(140)","Receptor(50)","Signaling(41)","Effector(46)"), las=2)
 
+immcols <- c("#e7298a","#7570b3","#1b9e77","#d95f02")
+names(immcols) <- c("ImmuneGenes","Receptor","Signaling","Effector")
 
 
 icp <- immunecounts[c("ImmuneGenes","Receptor","Signaling","Effector"),]
 icp[,"type"] <- rownames(icp)
 icp$type <- factor(icp$type,levels=c("ImmuneGenes","Receptor","Signaling","Effector"))
 
-ggplot(data=icp,aes(type,prop_m1m2select)) + geom_bar(stat="identity",fill="darkorchid4") + geom_hline(yintercept=immunecounts["AllGenes","prop_m1m2select"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M1 vs. M2")
+ggplot(data=icp,aes(type,prop_m1m2select)) + geom_bar(stat="identity",fill=immcols) + geom_hline(yintercept=immunecounts["AllGenes","prop_m1m2select"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1,size=13), axis.title.y = element_text(vjust=1,size=13)) + xlab("Gene Type") + ylab("Proportion Selected") + theme(panel.grid.major = element_blank(), panel.grid.minor=element_blank()) + ylim(0,0.6)
 
-ggplot(data=icp,aes(type,prop_m1m2selectOmega)) + geom_bar(stat="identity",fill="darkorchid4") + geom_hline(yintercept=immunecounts["AllGenes","prop_m1m2selectOmega"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M1 vs. M2")
+ggplot(data=icp,aes(type,prop_m1m2selectOmega)) + geom_bar(stat="identity",fill= immcols) + geom_hline(yintercept=immunecounts["AllGenes","prop_m1m2selectOmega"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1,size=13), axis.title.y = element_text(vjust=1,size=13)) + xlab("Gene Type") + ylab("Proportion Selected") + theme(panel.grid.major = element_blank(), panel.grid.minor=element_blank()) + ylim(0,0.25)
 
-ggplot(data=icp,aes(type,prop_m7m8select)) + geom_bar(stat="identity",fill="darkorchid4") + geom_hline(yintercept=immunecounts["AllGenes","prop_m7m8select"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M7 vs. M8")
 
-ggplot(data=icp,aes(type,prop_m7m8selectOmega)) + geom_bar(stat="identity",fill="darkorchid4") + geom_hline(yintercept=immunecounts["AllGenes","prop_m7m8selectOmega"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M7 vs. M8")
+ggplot(data=icp,aes(type,prop_m7m8select)) + geom_bar(stat="identity",fill= immcols) + geom_hline(yintercept=immunecounts["AllGenes","prop_m7m8select"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + theme(panel.grid.major = element_blank(), panel.grid.minor=element_blank()) 
+
+
+ggplot(data=icp,aes(type,prop_m7m8selectOmega)) + geom_bar(stat="identity",fill= immcols) + geom_hline(yintercept=immunecounts["AllGenes","prop_m7m8selectOmega"],linetype=2,size=1.5) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Proportion Selected") + ggtitle("M7 vs. M8") + theme(panel.grid.major = element_blank(), panel.grid.minor=element_blank())
+
 
 
 #Compare omega values across immune classes:
@@ -323,9 +330,23 @@ immune_omega <- rbind(immune_omega,immune_omega_all)
 
 immune_omega$Class <- factor(immune_omega$Class, levels=c("ImmuneGenes","Receptor","Signaling","Effector"))
 
-ggplot(data=immune_omega, aes(Class,Omega_m2)) + geom_boxplot(fill="darkorchid4") + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Omega (dN/dS) Selected") + ggtitle("M2 Model")
+ggplot(data=immune_omega, aes(Class,Omega_m2)) + geom_boxplot(fill= immcols) + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1,size=13), axis.text.y = element_text(size=13),  axis.title = element_text(vjust=1,size=13)) + xlab("Gene Type") + ylab("Omega (dN/dS) Selected") + geom_hline(yintercept=mean(paml_pval_allgenes$Omega_m2,na.rm=T),linetype=2,size=1.5) + theme(panel.grid.major = element_blank(), panel.grid.minor=element_blank()) 
 
-ggplot(data=immune_omega, aes(Class,Omega_m8)) + geom_boxplot(fill="darkorchid4") + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Omega (dN/dS) Selected") + ggtitle("M8 Model")
+ggplot(data=immune_omega, aes(Class,Omega_m8)) + geom_boxplot(fill="darkorchid4") + theme_bw() + theme(axis.text.x = element_text(angle=45,hjust=1), axis.title.y = element_text(vjust=1)) + xlab("Gene Type") + ylab("Omega (dN/dS) Selected") + ggtitle("M8 Model") + geom_hline(yintercept=mean(paml_pval_allgenes$Omega_m8,na.rm=T),linetype=2,size=1.5)
+
+for (i in 1:nrow(paml_pval_allgenes)){
+	if (!is.na(paml_pval_allgenes[i,"FDRPval_m1m2"]) & paml_pval_allgenes[i,"FDRPval_m1m2"]>0.05){
+		paml_pval_allgenes[i,"Omega_m2"] <- 1
+	}
+	if (!is.na(paml_pval_allgenes[i,"FDRPval_m7m8"]) & paml_pval_allgenes[i,"FDRPval_m7m8"]>0.05){
+		paml_pval_allgenes[i,"Omega_m8"] <- 1
+	}
+
+}
+
+
+
+
 
 ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m2"],immune_omega[immune_omega$Class=="Receptor","Omega_m2"])
 ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m2"],immune_omega[immune_omega$Class=="Signaling","Omega_m2"])
@@ -334,5 +355,111 @@ ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m2"],immune_omega[
 ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m8"],immune_omega[immune_omega$Class=="Receptor","Omega_m8"])
 ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m8"],immune_omega[immune_omega$Class=="Signaling","Omega_m8"])
 ks.test(immune_omega[immune_omega$Class=="ImmuneGenes","Omega_m8"],immune_omega[immune_omega$Class=="Effector","Omega_m8"])
+
+#Against all genes
+ks.test(paml_pval_allgenes$Omega_m2,immune_omega[immune_omega$Class=="Receptor","Omega_m2"])
+ks.test(paml_pval_allgenes$Omega_m2,immune_omega[immune_omega$Class=="Signaling","Omega_m2"])
+ks.test(paml_pval_allgenes$Omega_m2,immune_omega[immune_omega$Class=="Effector","Omega_m2"])
+
+ks.test(paml_pval_allgenes$Omega_m8,immune_omega[immune_omega$Class=="Receptor","Omega_m8"])
+ks.test(paml_pval_allgenes$Omega_m8,immune_omega[immune_omega$Class=="Signaling","Omega_m8"])
+ks.test(paml_pval_allgenes$Omega_m8,immune_omega[immune_omega$Class=="Effector","Omega_m8"])
+
+
+
+
+#Pathway enrichment:
+
+biogenes <- read.table("~/Dropbox/BirdImmuneGeneEvolution/Biosystems/biosystems_gene")
+colnames(biogenes) <- c("bsid","GeneID","score")
+
+biopath <- read.table("~/Dropbox/BirdImmuneGeneEvolution/Biosystems/bsid2info",sep="\t", fill=T,header=F)
+
+#Assign paml results to pathways from biosystems.
+paml_pval_innatedb_path <- merge(biogenes,paml_pval_innatedb,by.x="GeneID",by.y="entrezgene")
+paml_pval_allgenes_path <- merge(biogenes,paml_pval_allgenes_ncbi,by.x="GeneID",by.y="entrezgene")
+
+#How many of our paml results could be assigned ot pathways?
+length(unique(paml_pval_allgenes_path$GeneID))
+#3581
+#Of how many?
+length(unique(paml_pval_allgenes_ncbi$entrezgene))
+#11574
+#setdiff(unique(paml_pval_allgenes_ncbi$entrezgene),unique(paml_pval_allgenes_path$GeneID))
+
+#Seems to be a number of genes missing?
+
+
+
+
+#Try for KEGG pathway enrichment
+require(DOSE)
+require(clusterProfiler)
+
+m2_signames <- paml_pval_allgenes_ncbi[paml_pval_allgenes_ncbi$FDRPval_m1m2<0.05,"entrezgene"]
+
+m2_k <- enrichKEGG(m2_signames,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.01)
+
+m2_sigOmeganames <- paml_pval_allgenes_ncbi[paml_pval_allgenes_ncbi$FDRPval_m1m2<0.05 & paml_pval_allgenes_ncbi$Omega_m2>2 & paml_pval_allgenes_ncbi$Prop_m2>0.05,"entrezgene"]
+
+m2_omega_k <- enrichKEGG(m2_sigOmeganames,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05)
+
+summary(m2_omega_k)
+
+
+
+#Visualize pathways
+require(pathview)
+
+#Extract omegas from m2 model and assign non-sig to 0.01 (for visualization purposes)
+rownames(paml_pval_allgenes_ncbi) <- paml_pval_allgenes_ncbi$entrezgene
+omega_m2 <- paml_pval_allgenes_ncbi[,"Omega_m2"]
+omega_m2[paml_pval_allgenes_ncbi$FDRPval_m1m2>0.05] <- 0.01
+names(omega_m2) <- rownames(paml_pval_allgenes_ncbi)
+
+pv.out.04020 <- pathview(gene.data=omega_m2,pathway.id="04620",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=5),kegg.native=f,key.pos="topleft",out.suffix="TLR_Signaling")
+
+pv.out.05164 <- pathview(gene.data=omega_m2,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=5),kegg.native=F,key.pos="topright",out.suffix="Influenza_A")
+
+pv.out.04514 <- pathview(gene.data=omega_m2,pathway.id="04514",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=5),kegg.native=F,key.pos="topright",out.suffix="CAMs")
+
+pv.out.05168 <- pathview(gene.data=omega_m2,pathway.id="05168",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=5),kegg.native=T,key.pos="topright",out.suffix="HerpesSimplexInfection")
+
+pv.out.04060 <- pathview(gene.data=omega_m2,pathway.id="04060",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=5),kegg.native=T,key.pos="topright",out.suffix="CytokineCytokineReceptorInteraction")
+
+
+#pv.out <- pathview(gene.data=omega_m2,pathway.id="04620",species="gga",both.dirs=list(gene=F),mid="#7fbf7b",high="#af8dc3",limit=list(gene=5),na.col="gray",kegg.native=F)
+
+omega_m2_sig <- paml_pval_allgenes_ncbi[,c("FDRPval_m1m2","Omega_m2")]
+m2_sig <- rep(0,nrow(paml_pval_allgenes_ncbi))
+m2_sig[paml_pval_allgenes_ncbi$FDRPval_m1m2<0.05] <- 1
+names(m2_sig) <- rownames(paml_pval_allgenes_ncbi)
+m2_sig <- names(m2_sig[m2_sig==1])
+
+
+paml_pval_allgenes_ncbi[paml_pval_allgenes_ncbi$Omega_m2>1 & paml_pval_allgenes_ncbi$FDRPval_m1m2>0.05,]
+
+
+pv.out <- pathview(gene.data=omega_m2_sig[,1],pathway.id="04620",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=15),na.col="gray",kegg.native=F,out.suffix="Omega_m2_sig")
+
+pv.out <- pathview(gene.data=m2_sig,pathway.id="04620",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",na.col="gray",kegg.native=F,out.suffix="m2_sig",discrete=list(gene=T))
+
+
+
+require(ape)
+
+tree <- read.tree("~/Dropbox/BirdImmuneGeneEvolution/11700.final_spt.nwk")
+plot(tree,label.offset=0.7,cex=0.8,no.margin=T)
+
+sp <- read.csv("~/Dropbox/BirdImmuneGeneEvolution/species_list.csv",header=T)
+rownames(sp) <- sp$Short.name
+
+old_label <- tree$tip.label
+tree$tip.label <- as.character(sp[tree$tip.label,"Binomial.name"])
+plot(tree,label.offset=0.7,cex=0.8,no.margin=T)
+
+tree <- read.tree("~/Dropbox/BirdImmuneGeneEvolution/11700.final_spt.nwk")
+tree$tip.label <- as.character(sp[tree$tip.label,"Common.name"])
+plot(tree,label.offset=0.7,cex=0.8,no.margin=T)
 
 
