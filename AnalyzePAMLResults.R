@@ -414,7 +414,7 @@ require(pathview)
 #Extract omegas from m2 model and assign non-sig to 0.01 (for visualization purposes)
 rownames(paml_pval_allgenes_ncbi) <- paml_pval_allgenes_ncbi$entrezgene
 omega_m2 <- paml_pval_allgenes_ncbi[,"Omega_m2"]
-omega_m2[paml_pval_allgenes_ncbi$FDRPval_m1m2>0.05] <- 0.01
+omega_m2[paml_pval_allgenes_ncbi$FDRPval_m1m2>0.05] <- 1
 names(omega_m2) <- rownames(paml_pval_allgenes_ncbi)
 
 pv.out.04020 <- pathview(gene.data=omega_m2,pathway.id="04620",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=5),kegg.native=f,key.pos="topleft",out.suffix="TLR_Signaling")
