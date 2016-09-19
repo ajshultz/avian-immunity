@@ -463,3 +463,8 @@ tree$tip.label <- as.character(sp[tree$tip.label,"Common.name"])
 plot(tree,label.offset=0.7,cex=0.8,no.margin=T)
 
 
+
+
+
+
+
