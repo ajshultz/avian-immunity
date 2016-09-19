@@ -5,7 +5,7 @@
 #SBATCH -N 1
 #SBATCH -A edwards_lab
 #SBATCH --mem 500
-#SBATCH -t 3-00:00
+#SBATCH -t 7-00:00
 #SBATCH -o ./logs/paml_%A_%a.out
 #SBATCH -e ./logs/paml_%A_%a.err
 
