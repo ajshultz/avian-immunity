@@ -11,6 +11,7 @@ from Bio.Phylo.PAML import _parse_codeml
 from Bio.Phylo.Consensus import _BitString
 import io
 import re
+import StringIO
 
 #Included code to work with python 2.
 try:
@@ -79,7 +80,7 @@ def parse_trees (file,speciestree):
         else:
             seen_trees[tree_strings[i]] = i
             cur_tree = tree_strings[i].replace(" ","")
-            processed_trees = Phylo.read(io.StringIO(cur_tree), "newick")
+            processed_trees = Phylo.read(StringIO.StringIO(cur_tree), "newick")
             final_tree, foreground_sp = classify_tree(processed_trees)
             if speciestree is not None:
                 sptree = compare_trees(final_tree, speciestree)
@@ -113,7 +114,7 @@ def parse_multitree_results (file):
     paml_results = {}
     for i in range(len(pieces)):
         recons_res = header + "\nTREE" + pieces[i]
-        parsed = parse_codeml_string(io.StringIO(recons_res))
+        parsed = parse_codeml_string(StringIO.StringIO(recons_res))
         tree_index = i+1
         paml_results[tree_index] = parsed
     return(paml_results)
