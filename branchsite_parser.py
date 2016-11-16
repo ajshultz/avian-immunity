@@ -166,7 +166,7 @@ def parse_hogs(hoglist,model,input_dirs,verbose=True,multisite=False):
             cml = codeml.Codeml()
             try:
                 cml.read_ctl_file(control_file)
-            except OSError:
+            except IOError:
                 print("Couldn't parse file for", hog, "at", pamldir + "/" + fullpath)
                 continue
             
