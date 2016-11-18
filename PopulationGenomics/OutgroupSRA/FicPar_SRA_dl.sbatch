@@ -8,4 +8,4 @@
 #SBATCH -o FicPar_dl.log # File to which standard out will be written
 #SBATCH -e FicPar_dl.err # File to which standard err will be written
 
-wget ftp://ftp-trace.ncbi.nih.gov/sra/sra-instant/reads/ByRun/sra/ERR/ERR700/ERR700626/ERR700626.sra
+wget ftp://ftp-trace.ncbi.nih.gov/sra/sra-instant/reads/ByRun/sra/ERS/ERS628/ERS628385/ERS628385.sra
