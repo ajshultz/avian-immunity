@@ -8,4 +8,6 @@
 #SBATCH -o FicHyp_dl.log # File to which standard out will be written
 #SBATCH -e FicHyp_dl.err # File to which standard err will be written
 
-wget ftp://ftp-trace.ncbi.nih.gov/sra/sra-instant/reads/ByRun/sra/ERS/ERS628/ERS628403/ERS628403.sra
+wget ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR700/ERR700644/ERR700644_1.fastq.gz
+
+wget ftp://ftp.sra.ebi.ac.uk/vol1/fastq/ERR700/ERR700644/ERR700644_2.fastq.gz
