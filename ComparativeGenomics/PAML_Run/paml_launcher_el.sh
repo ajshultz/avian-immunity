@@ -8,6 +8,7 @@
 #SBATCH -t 7-00:00
 #SBATCH -o ./logs/paml_%A_%a.out
 #SBATCH -e ./logs/paml_%A_%a.err
+#SBATCH --constraint holyib
 
 HOGLIST=($(cat $1))
 HOGRUN=${HOGLIST[$SLURM_ARRAY_TASK_ID]}
