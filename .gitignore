@@ -2,3 +2,5 @@
 sample_hogs_100
 
 .DS_Store
+
+*.history
