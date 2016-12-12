@@ -26,6 +26,8 @@ def parse_busted_results(file):
         	if "Unrestricted class omega" in line:
         		newline = line.split("= ")
         		busted_results[1]=str(newline[2][0:15])
+        		if busted_results[1] == "1 (weight ":
+        			busted_results[1] = "1"
         		busted_results[2]=str(newline[3][0:17])
         	elif "Likelihood ratio test for episodic positive selection" in line:
         		newline = line.split("p = ")
