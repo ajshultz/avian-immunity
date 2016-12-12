@@ -9,27 +9,31 @@ import re
 import StringIO
 
 
-def parse_busted_results (file):
-     #takes a paml output file, splits on TREE #, returns list of output files to parse
-     
+def parse_busted_results(file):
+     #takes a busted output file, splits on TREE #, returns list of output files to parse
+    
+    busted_results=["NA","NA","NA"]    
+   
     with open(file, 'r') as pf:
-    	busted_results=["NA","NA","NA"]
         for line in pf:
-        	if re.search("Unrestricted class omega",line):
+        	line=line.strip()
+        	if "Unrestricted class omega" in line:
         		newline = line.split("= ")
-        		busted_results[1]=float(newline[1][0:15])
-        		busted_results[2]=float(newline[2][0:17])
-        	elif re. search("Likelihood ratio test for episodic positive selection",line):
+        		busted_results[1]=str(newline[2][0:15])
+        		busted_results[2]=str(newline[3][0:17])
+        	elif "Likelihood ratio test for episodic positive selection" in line:
         		newline = line.split("p = ")
-        		busted_results[0]=float(newline[1][0:17]
-        	else
+        		busted_results[0]=str(newline[1][0:17])
+        	elif "No evidence for positive selection under the unconstrained model" in line:
+        		busted_results[0]=str(1)
+        	else:
         		pass
     
     
     return(busted_results)
 
 
-def parse_hogs(hoglist,model,input_dirs,verbose=True,multisite=False):
+def parse_hogs(hoglist,model,input_dirs,verbose=True):
     #take list of hogs, return parsed final results dictionary
     final_results = {}
     for hog in hoglist:
@@ -53,52 +57,19 @@ def parse_hogs(hoglist,model,input_dirs,verbose=True,multisite=False):
             except FileNotFoundError:
                 print("Couldn't parse file for", hog, "at", pamldir + "/" + fullpath)
                 continue            
-            
-            
-            if hog in final_results:
-                #append
-                cur_len = len(final_results[hog]['trees'])
-                if cur_len != len(final_results[hog]['results']):
-                    print("Warning, something went wrong!!")
-                    
-                #update keys (tree numbers)
-                new_trees = {int(x)+cur_len:parsed_trees[x] for x in parsed_trees.keys()}
-                new_results = {int(x)+cur_len:parsed_results[x] for x in parsed_results.keys()}
-                final_results[hog]['trees'].update(new_trees)
-                final_results[hog]['results'].update(new_results)
-                    
-            else:       
-                final_results[hog] = {'trees':parsed_trees, 'results':parsed_results}
+                          
+            final_results[hog] = {'tree1':parsed_results_tree1, 'tree2':parsed_results_tree2}
     
     return(final_results)
     
-def print_results (results, handle, model):
-    #results is a complicated dict, but the basic format is: hog, tree->tree_dict, results->results_dict
-    #tree_dict and results_dict are matched by key
-    #to test let's start by printing out: hog id, tree num, foreground, species_tree vs gene_tree
-    #original tree, then paml parameters
+def print_results(results, handle, model):
+    #results is a complicated dict, but the basic format is: hog, tree1->[tree 1 results], tree2->[tree 2 results]
+    #to test let's start by printing out: hog id, tree num, pval, omega, weight
     for hog in results.keys():
-        tree_len = len(results[hog]['trees'])
-        res_len = len(results[hog]['results'])
-#       print(tree_len, res_len)
-#       print(results[hog]['trees'].keys())
-#       print(results[hog]['results'].keys())
-        for i in range(1,res_len+1):
-            trees = results[hog]['trees'].get(i, {})
-            res = results[hog]['results'].get(i, {})
-            print(hog, model, i, trees.get('foreground'), trees.get('is_species_tree'), trees.get('original'), sep="\t", end="\t", file=handle)
-            #parse results
-            res_lnl = res.get('NSsites', {}).get(2, {}).get('lnL')
-            res_siteclass = res.get('NSsites', {}).get(2, {}).get('parameters', {}).get('site classes')
-            res_treelen = res.get('NSsites', {}).get(2, {}).get('tree length')
-            print(res_lnl, res_treelen, sep="\t", end="", file=handle)
-            #need to iterate over site class numbers
-            try:
-                for sc in sorted(res_siteclass):
-                    print("\t" + res_siteclass[sc]['proportion'], res_siteclass[sc]['branch types']['foreground'], res_siteclass[sc]['branch types']['background'], sep="\t", end = "", file=handle)
-                print(file=handle)
-            except:
-                print("\tNone", 'None', 'None', 'None', 'None', 'None', 'None', 'None', 'None', 'None', 'None', 'None', sep="\t", end="\n", file=handle)
+    	tree1_res = "\t".join(results[hog]['tree1'])
+    	tree2_res = "\t".join(results[hog]['tree2'])
+    	print(hog,"tree1",tree1_res,sep="\t",end="\n",file=handle)
+    	print(hog,"tree2",tree2_res,sep="\t",end="\n",file=handle)
                 
                 
 def main():
@@ -110,9 +81,9 @@ def main():
     
     print("Done getting files.")
     with open(resfile_foroutput, 'w') as ofile:
-        print("hog", "treenum", "pval", "omega", "weight", "model_num", "lnl", "treelen", "kappa", "omega", sep="\t", end="\n", file=ofile)
-        results = parse_hogs(hogs,"sites",["."],True,multisite=False)
-        print_results(results, ofile, "sites")
+        print("hog", "treenum", "pval", "omega", "weight", sep="\t", end="\n", file=ofile)
+        results = parse_hogs(hogs,"busted",["."],True)
+        print_results(results, ofile, "busted")
 
 if __name__ == "__main__":
     main()
