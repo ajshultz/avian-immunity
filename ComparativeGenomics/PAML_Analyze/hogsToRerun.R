@@ -90,13 +90,23 @@ all_hogs <- as.character(all_hogs$V1)
 all_res_m2a <- read.table("~/Dropbox/BirdImmuneGeneEvolution/PAML/allhogs_results_m2aOnly.txt",header=T)
 rownames(all_res_m2a) <- as.character(all_res_m2a$hog)
 
+all_res_m2a_rerun <- read.table("~/Dropbox/BirdImmuneGeneEvolution/PAML/m2a_rerun_hogs_results.txt",header=T)
+rownames(all_res_m2a_rerun) <- as.character(all_res_m2a_rerun$hog)
+
 all_res_m8a <- read.table("~/Dropbox/BirdImmuneGeneEvolution/PAML/allhogs_results_m8aOnly.txt",header=T)
 rownames(all_res_m8a) <- all_res_m8a$hog
+
+all_res_m8a_rerun <- read.table("~/Dropbox/BirdImmuneGeneEvolution/PAML/m8a_rerun_hogs_results.txt",header=T)
+rownames(all_res_m8a_rerun) <- as.character(all_res_m8a_rerun$hog)
+
+all_res_m2a <- rbind(all_res_m2a,all_res_m2a_rerun)
+all_res_m8a <- rbind(all_res_m8a,all_res_m8a_rerun)
 
 need_m2a <- setdiff(all_hogs,rownames(all_res_m2a))
 need_m8a <- setdiff(all_hogs,rownames(all_res_m8a))
 
-write.table(need_m2a,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/hogs_to_rerun_m2a",sep="\t",row.names=F,col.names=F,quote=F)
-write.table(need_m8a,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/hogs_to_rerun_m8a",sep="\t",row.names=F,col.names=F,quote=F)
+
+write.table(need_m2a,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/hogs_to_rerun_m2a_2",sep="\t",row.names=F,col.names=F,quote=F)
+write.table(need_m8a,file="~/Dropbox/BirdImmuneGeneEvolution/PAML/hogs_to_rerun_m8a_2",sep="\t",row.names=F,col.names=F,quote=F)
 
 
