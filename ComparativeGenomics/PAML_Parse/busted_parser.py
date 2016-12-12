@@ -9,6 +9,12 @@ import re
 import StringIO
 
 
+#Code to work with Python2
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
 def parse_busted_results(file):
      #takes a busted output file, splits on TREE #, returns list of output files to parse
     
