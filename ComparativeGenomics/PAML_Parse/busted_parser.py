@@ -25,14 +25,23 @@ def parse_busted_results(file):
         	line=line.strip()
         	if "Unrestricted class omega" in line:
         		newline = line.split("= ")
-        		busted_results[1]=str(newline[2][0:15])
-        		if busted_results[1] == "1 (weight ":
+        		omega=re.findall('[0-9]+.[0-9e\-0-9]+',newline[2])
+        		if len(omega)>0:
+        			busted_results[1] = str(omega[0])
+        		elif "1 (weight " in newline[2]:
         			busted_results[1] = "1"
-        		busted_results[2]=str(newline[3][0:17])
+        		weight=re.findall('[0-9].[0-9e\-0-9]+',newline[3])
+        		if len(weight)>0:
+        			busted_results[2]=str(weight[0])
+        		elif newline[3] == " 0":
+        			busted_results[2] = "0"
         	elif "Likelihood ratio test for episodic positive selection" in line:
-        		newline = line.split("p = ")
-        		busted_results[0]=str(newline[1][0:17])
-        	elif "No evidence for positive selection under the unconstrained model" in line:
+        		x=re.findall('[0-9].[0-9e\-0-9]+',line)
+        		if len(x)>0:
+        			busted_results[0]=str(x[0])
+        		elif line[-5:]=="p = 1":
+        			busted_results[0]=str(1)
+            	elif "No evidence for positive selection under the unconstrained model" in line:
         		busted_results[0]=str(1)
         	else:
         		pass
