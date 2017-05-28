@@ -23,7 +23,7 @@ CTL=${BASECTL##*/}
 cp $BASECTL $HOG.$CTL
 MODEL=${CTL##codeml.}
 sed -i "s/SEQINPUT/$HOG.phy/" $HOG.$CTL
-sed -i "s/TREEINPUT/$HOG.tree1.nwk/" $HOG.$CTL; #name of whatever output tree, make sure to count number of species
+sed -i "s/TREEINPUT/$HOG.tree2.nwk/" $HOG.$CTL; #name of whatever output tree, make sure to count number of species
 sed -i "s/OUTPUT/${MODEL%%.ctl}.out/" $HOG.$CTL
 
 CURTIME=$(date)
@@ -39,5 +39,5 @@ python $WORKDIR/paml_tree_extract.py $HOG.ancrec.out $HOG
 echo "$(pwd -P)"
 codeml $HOG.codeml.sites.ctl
 CURTIME=$(date)
-echo "$CURTIME: Finished Tree1 codeml.sites.ctl"
+echo "$CURTIME: Finished Tree2 codeml.sites.ctl"
 touch DONE
