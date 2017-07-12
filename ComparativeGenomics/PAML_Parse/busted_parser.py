@@ -33,7 +33,7 @@ def parse_busted_results(file):
         		weight=re.findall('[0-9].[0-9e\-0-9]+',newline[3])
         		if len(weight)>0:
         			busted_results[2]=str(weight[0])
-        		elif newline[3] == " 0":
+        		elif newline[3] == "0)":
         			busted_results[2] = "0"
         	elif "Likelihood ratio test for episodic positive selection" in line:
         		x=re.findall('[0-9].[0-9e\-0-9]+',line)
@@ -41,6 +41,8 @@ def parse_busted_results(file):
         			busted_results[0]=str(x[0])
         		elif line[-5:]=="p = 1":
         			busted_results[0]=str(1)
+        		elif line[-5:]=="p = 0":
+        			busted_results[0]=str(0)
             	elif "No evidence for positive selection under the unconstrained model" in line:
         		busted_results[0]=str(1)
         	else:
