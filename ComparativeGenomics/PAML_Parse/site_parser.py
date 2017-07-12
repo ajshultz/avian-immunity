@@ -17,7 +17,7 @@ import re
 
 from branchsite_parser import parse_hogs
 
-def print_results(results, handle, model):
+def print_results(results, handle, model, treenum):
     for hog in results.keys():
         tree_len = len(results[hog]['trees'])
         res_len = len(results[hog]['results'])
@@ -62,20 +62,21 @@ def print_results(results, handle, model):
                 else:
                     pass
                     
-                print(hog, model, i, trees.get('is_species_tree'), trees.get('original'), modelnum, res_lnl, res_treelen, res_kappa, res_omega, sep="\t", end="\n", file=handle)
+                print(hog, model, treenum, trees.get('is_species_tree'), trees.get('original'), modelnum, res_lnl, res_treelen, res_kappa, res_omega, sep="\t", end="\n", file=handle)
  
 
 def main():
     print("Starting to parse.")
     hogfile_toparse = sys.argv[1]
     resfile_foroutput = sys.argv[2]
+    treenum = sys.argv[3]
     with open(hogfile_toparse) as hfile:
         hogs=[line.strip() for line in hfile]
     
     print("Done getting files.")
     with open(resfile_foroutput, 'w') as ofile:
         print("hog", "model", "treenum", "species_tree", "newick_string", "model_num", "lnl", "treelen", "kappa", "omega", sep="\t", end="\n", file=ofile)
-        results = parse_hogs(hogs,"sites",["."],True,True)
+        results = parse_hogs(hogs,"sites",["."],True,multisite=False)
         print_results(results, ofile, "sites")
 
 if __name__ == "__main__":
