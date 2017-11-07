@@ -39,26 +39,29 @@ def print_results(results, handle, model, treenum):
                     res_omega = None
                     res_omegas = res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('site classes', {})
                     try:
-                    	for sc in sorted(res_omegas.keys(), key=int):
-                        	if res_omega is None:
-                          	  res_omega = str(round(res_omegas[sc]['proportion'],3)) + ":" + res_omegas[sc]['omega']
-                       		else:
-                         	   res_omega += "," + str(round(res_omegas[sc]['proportion'],3)) + ":" + res_omegas[sc]['omega']
+                        for sc in sorted(res_omegas.keys(), key=int):
+                            if res_omega is None:
+                                res_omega = str(round(res_omegas[sc]['proportion'],3)) + ":" + res_omegas[sc]['omega']
+                            else:
+                                res_omega += "," + str(round(res_omegas[sc]['proportion'],3)) + ":" + res_omegas[sc]['omega']
                     except AttributeError:
-                    	print(hog)
-                    	continue
+                        print(hog)
+                        continue
                 elif modelnum == 7:
                     #m7 case
                     m7_p = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('p')),3))
                     m7_q = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('q')),3))
                     res_omega = m7_p + "/" + m7_q
                 elif modelnum == 8:
-                    m8_p = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('p')),3))
-                    m8_q = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('q')),3))
-                    m8_p0 = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('p0')),3))
-                    m8_p1 = str(round(1 - float(m8_p0),3))
-                    m8_w = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('w')),3))
-                    res_omega = m8_p0 + ":" + m8_p + "/" + m8_q + "," + m8_p1 + ":" + m8_w
+                    try:
+                        m8_p = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('p')),3))
+                        m8_q = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('q')),3))
+                        m8_p0 = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('p0')),3))
+                        m8_p1 = str(round(1 - float(m8_p0),3))
+                        m8_w = str(round(float(res.get('NSsites', {}).get(modelnum, {}).get('parameters', {}).get('w')),3))
+                        res_omega = m8_p0 + ":" + m8_p + "/" + m8_q + "," + m8_p1 + ":" + m8_w
+                    except TypeError:
+                        pass
                 else:
                     pass
                     
