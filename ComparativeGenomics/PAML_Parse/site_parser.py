@@ -77,7 +77,7 @@ def main():
     with open(resfile_foroutput, 'w') as ofile:
         print("hog", "model", "treenum", "species_tree", "newick_string", "model_num", "lnl", "treelen", "kappa", "omega", sep="\t", end="\n", file=ofile)
         results = parse_hogs(hogs,"sites",["."],True,multisite=False)
-        print_results(results, ofile, "sites")
+        print_results(results, ofile, "sites",treenum)
 
 if __name__ == "__main__":
     main()
