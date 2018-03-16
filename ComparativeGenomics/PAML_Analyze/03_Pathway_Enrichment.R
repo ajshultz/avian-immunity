@@ -10,7 +10,7 @@ setwd("~/Dropbox/BirdImmuneGeneEvolution/")
 #######################################################################################################################
 
 #load processed, NCBI annotated data
-load("~/Dropbox/BirdImmuneGeneEvolution/PAML/processed_data/all_res_ncbi.Rdat")
+load("02_output_annotated_data/all_res_ncbi.Rdat")
 
 #Get list of entrezgenes significant in all tests, and lists of genes present in all tests
 all_tested_gene <- all_res_gene_ncbi %>%
@@ -42,24 +42,36 @@ length(setdiff(all_sig_sp,all_sig_gene))
 #Pathway Enrichment
 #######################################################################################################################
 
-#Pathway enrichemnt tests:
+#Chicken pathway enrichemnt tests:
+#Gene trees, p<0.05, q<0.05
 all_genes_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_gene,keyType="ncbi-geneid")
 
-summary(all_genes_k)
+write_csv(summary(all_genes_k), path="03_output_pathway_results/chicken_genetree_pathwayres_p0.05_q0.05.csv")
 
+#Gene trees, all results, no cutoff
+all_genes_nocutoff_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
+
+write_csv(summary(all_genes_nocutoff_k), path="03_output_pathway_results/chicken_genetree_pathwayres_nocutoffs.csv")
+
+#Species trees, p<0.05, q<0.05
 all_sp_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp,keyType="ncbi-geneid")
 
-summary(all_sp_k)
+write_csv(summary(all_sp_k), path="03_output_pathway_results/chicken_speciestree_pathwayres_p0.05_q0.05.csv")
 
+#Species trees, all results, no cutoff
 
-#Plots
-dotplot(all_genes_k)
-enrichMap(all_genes_k)
-cnetplot(all_genes_k,categorySize="pvalue",showCategory=10,fixed=TRUE)
+all_sp_nocutoff_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_sp,keyType="ncbi-geneid")
 
-dotplot(all_sp_k)
-enrichMap(all_sp_k)
-cnetplot(all_sp_k,categorySize="pvalue",showCategory=10,fixed=TRUE)
+write_csv(summary(all_sp_nocutoff_k), path="03_output_pathway_results/chicken_speciestree_pathwayres_nocutoffs.csv")
+
+#Plots *Will finalize when we decide what is going in the paper
+#dotplot(all_genes_k)
+#enrichMap(all_genes_k)
+#cnetplot(all_genes_k,categorySize="pvalue",showCategory=10,fixed=TRUE)
+
+#dotplot(all_sp_k)
+#enrichMap(all_sp_k)
+#cnetplot(all_sp_k,categorySize="pvalue",showCategory=10,fixed=TRUE)
 
 
 #Extract proportion selected lineages (prop_sel.n) to visualize on pathways
@@ -73,8 +85,8 @@ names(prop_sel.n) <- all_res_gene_ncbi %>%
   pull(entrezgene)
 
 
-pv.out.05164 <- pathview(gene.data=prop_sel.n,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(prop_sel.n)),kegg.native=T,key.pos="topright",out.suffix="Influenza_A_propseln")
-pv.out.05164 <- pathview(gene.data=all_sig_gene,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="Influenza_A_sig_genes")
+#pv.out.05164 <- pathview(gene.data=prop_sel.n,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(prop_sel.n)),kegg.native=T,key.pos="topright",out.suffix="Influenza_A_propseln")
+#pv.out.05164 <- pathview(gene.data=all_sig_gene,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="Influenza_A_sig_genes")
 
 
 prop_sel.n <- all_res_sp_ncbi %>%
@@ -87,14 +99,14 @@ names(prop_sel.n) <- all_res_sp_ncbi %>%
   pull(entrezgene)
 
 
-pv.out.05164 <- pathview(gene.data=prop_sel.n,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(prop_sel.n)),kegg.native=T,key.pos="topright",out.suffix="Influenza_A_propseln_sptree")
-pv.out.05164 <- pathview(gene.data=all_sig_sp,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="Influenza_A_sig_genes_sptree")
+#pv.out.05164 <- pathview(gene.data=prop_sel.n,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(prop_sel.n)),kegg.native=T,key.pos="topright",out.suffix="Influenza_A_propseln_sptree")
+#pv.out.05164 <- pathview(gene.data=all_sig_sp,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="Influenza_A_sig_genes_sptree")
 
 
 #######################################################################################################################
 #Pathway Enrichment Zebra Finch
 #######################################################################################################################
-load("~/Dropbox/BirdImmuneGeneEvolution/PAML/processed_data/all_res_zf_hs.Rdat")
+load("02_output_annotated_data/all_res_zf_hs.Rdat")
 
 #Testing with species tree
 all_tested_sp_zf <- all_res_sp_zf_hs %>%
@@ -112,7 +124,8 @@ all_sig_sp_zf <- all_res_sp_zf_hs %>%
 
 all_sp_zf_k <- enrichKEGG(all_sig_sp_zf,organism="tgu",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp_zf,keyType="ncbi-geneid")
 
-summary(all_sp_zf_k)
+write_csv(summary(all_sp_zf_k), path="03_output_pathway_results/zebrafinch_speciestree_pathwayres_p0.05_q0.05.csv")
+
 
 
 #######################################################################################################################
@@ -135,8 +148,11 @@ all_sig_sp_hs <- all_res_sp_zf_hs %>%
 
 all_sp_hs_k <- enrichKEGG(all_sig_sp_hs,organism="hsa",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp_hs,keyType="ncbi-geneid")
 
-summary(all_sp_hs_k)
 
-dotplot(all_sp_hs_k)
-enrichMap(all_sp_hs_k)
-cnetplot(all_sp_hs_k,categorySize="pvalue",showCategory=10,fixed=TRUE)
+write_csv(summary(all_sp_hs_k), path="03_output_pathway_results/human_speciestree_pathwayres_p0.05_q0.05.csv")
+
+
+
+#dotplot(all_sp_hs_k,showCategory=20)
+#enrichMap(all_sp_hs_k)
+#cnetplot(all_sp_hs_k,categorySize="pvalue",showCategory=20,fixed=TRUE)
