@@ -42,7 +42,8 @@ write_csv(all_res_sp_ncbi,path="02_output_annotated_data/raw_results_sptrees.csv
 
 save(all_res_gene_ncbi,all_res_sp_ncbi,file="02_output_annotated_data/all_res_ncbi.Rdat")
 
-#Add human NCBI gene IDs from biomaRt
+
+####Add human NCBI gene IDs from biomaRt
 ensembl = useMart("ensembl")
 ensembl_gg = useDataset("ggallus_gene_ensembl",mart=ensembl)
 ensembl_hs = useDataset("hsapiens_gene_ensembl",mart=ensembl)
@@ -95,6 +96,7 @@ zf_trans_table <- zf_ens_to_entrezgene %>%
   left_join(human_ids_zf,by="ensembl_gene_id_zf") %>%
   left_join(hs_ens_to_entrezgene,by="hsapiens_homolog_ensembl_gene")
 
+##########Figuring out how to fill in missing human data with data from zebra finch human comparison to get most complete dataset possile. Write up in methods, use in bird/mammal comparison
 all_res_gene_zf_hs <- all_res_gene_ncbi %>%
   left_join(gg_trans_table,by="entrezgene") %>%
   filter(is.na(hsapiens_homolog_ensembl_gene)) %>%
@@ -106,57 +108,3 @@ all_res_sp_zf_hs <- all_res_sp_ncbi %>%
 
 
 save(all_res_gene_zf_hs,all_res_sp_zf_hs,file="02_output_annotated_data/all_res_zf_hs.Rdat")
-
-
-######################################################################
-##Basic dataset characteristics#######################################
-######################################################################
-#How many genes in gene tree and species tree datasets?
-all_res_gene_ncbi %>%
-  summarize(n())
-all_res_sp_ncbi %>%
-  summarize(n())
-
-#How many had chicken and zebra finch NCBI gene IDs?
-#chicken
-all_res_gene_ncbi %>%
-  filter(!is.na(entrezgene)) %>%
-  summarize(n())
-all_res_sp_ncbi %>%
-  filter(!is.na(entrezgene)) %>%
-  summarize(n())
-#zebra finch
-all_res_gene_ncbi %>%
-  filter(!is.na(entrezgene_zf)) %>%
-  summarize(n())
-all_res_sp_ncbi %>%
-  filter(!is.na(entrezgene_zf)) %>%
-  summarize(n())
-
-
-
-all_res_gene_ncbi <- all_res_gene_ncbi %>%
-  filter(!is.na(pval_busted) & !is.na(PVal_m1m2) & !is.na(PVal_m2m2a) & !is.na(PVal_m7m8) & !is.na(PVal_m8m8a) & !is.na(total_sel.n))
-
-all_res_sp_ncbi <- all_res_sp_ncbi %>%
-  filter(!is.na(pval_busted) & !is.na(PVal_m1m2) & !is.na(PVal_m2m2a) & !is.na(PVal_m7m8) & !is.na(PVal_m8m8a) & !is.na(total_sel.n))
-
-save(all_res_gene_ncbi,all_res_sp_ncbi,file="02_output_annotated_data/all_res_ncbi.Rdat")
-
-
-
-
-#How many genes in gene tree and species tree datasets?
-all_res_gene_ncbi %>%
-  summarize(n())
-all_res_sp_ncbi %>%
-  summarize(n())
-
-#either chicken or zebra finch?
-all_res_gene_ncbi %>%
-  filter(!is.na(entrezgene_zf) | !is.na(entrezgene)) %>%
-  summarize(n())
-
-all_res_gene_zf_hs %>%
-  filter(!is.na(entrezgene)) %>%
-  filter(!is.na(ensembl_gene_id))
