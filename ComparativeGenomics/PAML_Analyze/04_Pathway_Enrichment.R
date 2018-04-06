@@ -46,23 +46,23 @@ length(setdiff(all_sig_sp,all_sig_gene))
 #Gene trees, p<0.05, q<0.05
 all_genes_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_gene,keyType="ncbi-geneid")
 
-write_csv(summary(all_genes_k), path="03_output_pathway_results/chicken_genetree_pathwayres_p0.05_q0.05.csv")
+write_csv(summary(all_genes_k), path="04_output_pathway_results/chicken_genetree_pathwayres_p0.05_q0.05.csv")
 
 #Gene trees, all results, no cutoff
 all_genes_nocutoff_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
 
-write_csv(summary(all_genes_nocutoff_k), path="03_output_pathway_results/chicken_genetree_pathwayres_nocutoffs.csv")
+write_csv(summary(all_genes_nocutoff_k), path="04_output_pathway_results/chicken_genetree_pathwayres_nocutoffs.csv")
 
 #Species trees, p<0.05, q<0.05
 all_sp_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp,keyType="ncbi-geneid")
 
-write_csv(summary(all_sp_k), path="03_output_pathway_results/chicken_speciestree_pathwayres_p0.05_q0.05.csv")
+write_csv(summary(all_sp_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_p0.05_q0.05.csv")
 
 #Species trees, all results, no cutoff
 
 all_sp_nocutoff_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_sp,keyType="ncbi-geneid")
 
-write_csv(summary(all_sp_nocutoff_k), path="03_output_pathway_results/chicken_speciestree_pathwayres_nocutoffs.csv")
+write_csv(summary(all_sp_nocutoff_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_nocutoffs.csv")
 
 #Plots *Will finalize when we decide what is going in the paper
 #dotplot(all_genes_k)
@@ -124,7 +124,7 @@ all_sig_sp_zf <- all_res_sp_zf_hs %>%
 
 all_sp_zf_k <- enrichKEGG(all_sig_sp_zf,organism="tgu",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp_zf,keyType="ncbi-geneid")
 
-write_csv(summary(all_sp_zf_k), path="03_output_pathway_results/zebrafinch_speciestree_pathwayres_p0.05_q0.05.csv")
+write_csv(summary(all_sp_zf_k), path="04_output_pathway_results/zebrafinch_speciestree_pathwayres_p0.05_q0.05.csv")
 
 
 
@@ -149,7 +149,7 @@ all_sig_sp_hs <- all_res_sp_zf_hs %>%
 all_sp_hs_k <- enrichKEGG(all_sig_sp_hs,organism="hsa",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp_hs,keyType="ncbi-geneid")
 
 
-write_csv(summary(all_sp_hs_k), path="03_output_pathway_results/human_speciestree_pathwayres_p0.05_q0.05.csv")
+write_csv(summary(all_sp_hs_k), path="04_output_pathway_results/human_speciestree_pathwayres_p0.05_q0.05.csv")
 
 
 

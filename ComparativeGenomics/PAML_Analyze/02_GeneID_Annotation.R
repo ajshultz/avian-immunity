@@ -96,15 +96,19 @@ zf_trans_table <- zf_ens_to_entrezgene %>%
   left_join(human_ids_zf,by="ensembl_gene_id_zf") %>%
   left_join(hs_ens_to_entrezgene,by="hsapiens_homolog_ensembl_gene")
 
-##########Figuring out how to fill in missing human data with data from zebra finch human comparison to get most complete dataset possile. Write up in methods, use in bird/mammal comparison
+#save biomart results
+save(gg_ens_to_entrezgene, zf_ens_to_entrezgene, hs_ens_to_entrezgene, gg_trans_table, zf_trans_table, file="02_output_annotated_data/biomart_translation_tables.Rdat")
+
+##########Create combined dataset of all hog results, chicken and zebra finch annotations. Use the coalesce() function to replace missing chicken annotations with zebra finch. Note that this results in multiples in the case of several matches. For now keeping to make sure the highest possible number of matches with mammal dataset. Will get distinct values before analyses.
 all_res_gene_zf_hs <- all_res_gene_ncbi %>%
   left_join(gg_trans_table,by="entrezgene") %>%
-  filter(is.na(hsapiens_homolog_ensembl_gene)) %>%
   left_join(zf_trans_table,by="entrezgene_zf") %>%
-  filter(!is.na(hsapiens_homolog_ensembl_gene.y))
+  mutate(entrezgene_hs = coalesce(entrezgene_hs.x,entrezgene_hs.y), ensembl_gene_id_hs = coalesce(hsapiens_homolog_ensembl_gene.x,hsapiens_homolog_ensembl_gene.y))
 
 all_res_sp_zf_hs <- all_res_sp_ncbi %>%
-  left_join(gg_trans_table,by="entrezgene")
+  left_join(gg_trans_table,by="entrezgene") %>%
+  left_join(zf_trans_table,by="entrezgene_zf") %>%
+  mutate(entrezgene_hs = coalesce(entrezgene_hs.x,entrezgene_hs.y), ensembl_gene_id_hs = coalesce(hsapiens_homolog_ensembl_gene.x,hsapiens_homolog_ensembl_gene.y))
 
 
 save(all_res_gene_zf_hs,all_res_sp_zf_hs,file="02_output_annotated_data/all_res_zf_hs.Rdat")

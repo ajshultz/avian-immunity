@@ -3,95 +3,69 @@ setwd("~/Dropbox/BirdImmuneGeneEvolution/")
 library(tidyverse)
 library(RColorBrewer)
 library(cowplot)
-#library(dplyr)
-#library(readr)
-#library(tidyr)
-#library(ggplot2)
-
 
 #Load dataset with NCBI annotations
-load("02_output_annotated_data/all_res_ncbi.Rdat")
-
-#############################################################################
-#############Calculate some general stats on the dataset#####################
-#############################################################################
-
-stats_table <- matrix(nrow=2, ncol=9)
-
-stats_table[,1] <- c("gene","species")
-
-#How many genes with all tests?
-stats_table[1,2] <- all_res_gene_ncbi %>%
-  filter(!is.na(pval_busted) & !is.na(PVal_m1m2) & !is.na(PVal_m2m2a) & !is.na(PVal_m7m8) & !is.na(PVal_m8m8a) & !is.na(total_sel.n)) %>%
-  summarise(n()) %>% pull
-stats_table[2,2] <- all_res_sp_ncbi %>%
-  filter(!is.na(pval_busted) & !is.na(PVal_m1m2) & !is.na(PVal_m2m2a) & !is.na(PVal_m7m8) & !is.na(PVal_m8m8a) & !is.na(total_sel.n)) %>%
-  summarise(n()) %>% pull
-
-#How many hogs are selected according to each test?
-
-
-#How many hogs are selected in all PAML tests
-all_res_gene_ncbi %>%
-  filter(FDRPval_m2m2a < 0.05, FDRPval_m8m8a < 0.05, FDRPval_m1m2 < 0.05, FDRPval_m7m8 < 0.05)
-all_res_sp_ncbi %>%
-  filter(FDRPval_m2m2a < 0.05, FDRPval_m8m8a < 0.05, FDRPval_m1m2 < 0.05, FDRPval_m7m8 < 0.05)
-
-all_selected_hogs <- hyphy_paml_res[hyphy_paml_res[,"FDRPval_m2m2a"]<0.05 & hyphy_paml_res[,"FDRPval_m8m8a"]<0.05 & hyphy_paml_res[,"FDRPval_m1m2"]<0.05 & hyphy_paml_res[,"FDRPval_m7m8"]<0.05 & hyphy_paml_res[,"FDRPval_busted"]<0.05,"hog"]
-all_selected_hogs <- as.character(all_selected_hogs[!is.na(all_selected_hogs)])
-length(all_selected_hogs)
-
-#How many branches are selected by BS-Rel for HOGs selected by all tests
-hist(hyphy_paml_res[all_selected_hogs,"total_sel.s"],breaks=20)
-hist(hyphy_paml_res[all_selected_hogs,"total_sel.n"],breaks=20)
-summary(hyphy_paml_res[all_selected_hogs,"total_sel.s"])
-summary(hyphy_paml_res[all_selected_hogs,"total_sel.n"])
-
-
-
-
+load("02_output_annotated_data/all_res_zf_hs.Rdat")
 
 #Load BIP, PIP and VIP annotations
-bip<-read_csv("04_input_mammal_data/bip_mammal.csv", col_names=c("ensID")) %>%
+bip<-read_csv("05_input_mammal_data/bip_mammal.csv", col_names=c("ensID")) %>%
   mutate(bip=TRUE)
-pip<-read_csv("04_input_mammal_data/pip_mammals.csv") %>% mutate(pip=TRUE) %>%
+pip<-read_csv("05_input_mammal_data/pip_mammals.csv") %>% mutate(pip=TRUE) %>%
   dplyr::select(ensID=GeneID, pip)
-vip<-read_csv("04_input_mammal_data/enard_vip.csv") %>% mutate(vip=TRUE) %>%
+vip<-read_csv("05_input_mammal_data/enard_vip.csv") %>% mutate(vip=TRUE) %>%
   dplyr::select(ensID=`Ensembl identifier`, vip)
 
 #Combine datasets
 mammal_annot <- bip %>%
   full_join(pip, by="ensID") %>%
-  full_join(vip, by="ensID")
+  full_join(vip, by="ensID") %>%
+  mutate(bip = !is.na(bip), vip=!is.na(vip), pip=!is.na(pip))
 
 #Read in chicken to human ensembl ID conversion, join annotation dataset.
-ggal_hsap <- read_csv("04_input_mammal_data/galgal_ens_to_human.txt", col_names = c("ggalEnsId", "ensID", "confidence"))
+#ggal_hsap <- read_csv("05_input_mammal_data/galgal_ens_to_human.txt", col_names = c("ggalEnsId", "ensID", "confidence"))
 
 #Join annotation dataset and ensembl ID conversion, create bip, pip and vip tibbles with only those genes that fall into each category.
-ggal_hsap <- full_join(mammal_annot, ggal_hsap, by="ensID") %>%
-  mutate(bip = !is.na(bip), vip=!is.na(vip), pip=!is.na(pip))
-ggal_annot <- ggal_hsap %>% dplyr::select(ggalEnsId, confidence, bip, pip, vip) %>% filter(!is.na(ggalEnsId)) %>% group_by(ggalEnsId) %>% summarize(bip = sum(bip)>0, vip=sum(vip)>0, pip=sum(pip)>0)
+#ggal_hsap <- full_join(mammal_annot, ggal_hsap, by="ensID") %>%
+#  mutate(bip = !is.na(bip), vip=!is.na(vip), pip=!is.na(pip))
+#ggal_annot <- ggal_hsap %>% dplyr::select(ggalEnsId, confidence, bip, pip, vip) %>% filter(!is.na(ggalEnsId)) %>% group_by(ggalEnsId) %>% summarize(bip = sum(bip)>0, vip=sum(vip)>0, pip=sum(pip)>0)
 
 #Translate chicken ensembl numbers to NCBI numbers, join to annotation data and write to file
-ens_ncbi <- read_csv("04_input_mammal_data/galgal_ens_to_ncbi.txt", col_names = c("ggalEnsId", "entrezID", "name"))
-ggal_annot <- left_join(ggal_annot, ens_ncbi)
-write_csv(ggal_annot, "04_output_bird_mammal_comparison_results/ggal_alt_annotation.csv")
+#ens_ncbi <- read_csv("05_input_mammal_data/galgal_ens_to_ncbi.txt", col_names = c("ggalEnsId", "entrezID", "name"))
+#ggal_annot <- left_join(ggal_annot, ens_ncbi)
+#write_csv(ggal_annot, "05_output_bird_mammal_comparison_results/ggal_alt_annotation.csv")
+
+#Apply the vip, bip and pip annotations to the hogs in our dataset, then add them back into the full dataset
+hog_annot <- all_res_sp_zf_hs %>%
+  right_join(mammal_annot,by=c("hsapiens_homolog_ensembl_gene" = "ensID")) %>%
+  group_by(hog) %>%
+  select(hog,entrezgene,bip,vip,pip) %>%
+  summarize(bip = sum(bip)>0, vip=sum(vip)>0, pip=sum(pip)>0)
+
+all_res_sp_zf_hs <- all_res_sp_zf_hs %>%
+  left_join(hog_annot,by="hog") %>%
+  replace_na(list(vip = FALSE, bip = FALSE, pip = FALSE))
+
+#Save hog vip, bip and pip annotations
+write_csv(hog_annot, "05_output_bird_mammal_comparison_results/hog_alt_annotation.csv")
+
 
 #Load mammal data
-enard_orig<-read_csv("04_input_mammal_data/enard_hyphy.csv", col_names = T, guess_max=2000) %>% dplyr::rename(ensID = `Ensembl Gene ID`, BUSTED = `BUSTED P-value`)
+enard_orig<-read_csv("05_input_mammal_data/enard_hyphy.csv", col_names = T, guess_max=2000) %>% dplyr::rename(ensID = `Ensembl Gene ID`, BUSTED = `BUSTED P-value`)
 enard <- enard_orig %>%
   gather(branch, propsel, Human:Elephant) %>%
   group_by(ensID, BUSTED) %>%
   summarize(bs_ct = sum(propsel>0)) %>%
   ungroup
 
-#Add in data from primate specific testing
-primate<-read_tsv("04_input_mammal_data/primate-9sp-data.txt") %>%
+#Add in data from primate specific testing, and combine both mammal datasets
+primate<-read_tsv("05_input_mammal_data/primate-9sp-data.txt") %>%
   dplyr::select(ensID = Ensembl.Gene.ID, psr = PSR.total) %>%
   mutate(paml_sig = 1)
 
-mammal_select <- full_join(enard, primate) %>%
-  left_join(ggal_hsap)
+mammal_select <- full_join(enard, primate)
+
+#mammal_select <- full_join(enard, primate) %>%
+#  left_join(ggal_hsap)
 
 #Remove missing data (replace by non-sig results, and filter non one-to-one mapping by choosing the minimum busted pvalue, etc.)
 ggal_mammal_comp <- mammal_select %>%
@@ -102,22 +76,35 @@ ggal_mammal_comp <- mammal_select %>%
   group_by(ggalEnsId) %>% 
   summarize(bustedp = min(BUSTED, na.rm=T), bs_ct = max(bs_ct, na.rm=T), psr = max(psr, na.rm=T), paml_sig = max(paml_sig, na.rm=T))
 
+#Add hog designations to mammal data, remove missing mammal data (replace by non-sig results, and filter non one-to-one mapping by choosing the minimum busted pvalue, etc.)
+mammal_clean 
+all_res_sp_zf_hs %>%
+  select(ensembl_gene_id,hsapiens_homolog_ensembl_gene) %>%
+  right_join(mammal_select,by=c("hsapiens_homolog_ensembl_gene" = "ensID")) %>%
+  filter(!is.na(ensembl_gene_id)) %>%
+  replace_na(list(BUSTED=1, bs_ct=0, psr=0, paml_sig=0)) %>% 
+  group_by(ensembl_gene_id) %>% 
+  summarize(bustedp = min(BUSTED, na.rm=T), bs_ct = max(bs_ct, na.rm=T), psr = max(psr, na.rm=T), paml_sig = max(paml_sig, na.rm=T))
+  
+
 #Add in ensembl IDs and write to file.
 ggal_mammal_comp <- ggal_mammal_comp %>%
   left_join(ens_ncbi)
 
 ggal_mammal_comp %>%
-  write_csv("04_output_bird_mammal_comparison_results/ggal_mammal_comp.csv")
+  write_csv("05_output_bird_mammal_comparison_results/ggal_mammal_comp.csv")
 
 #Combine bird and mammal datasets, only keep BUSTED results to ensure direct comparisons with mammals.
-birds<-all_res_sp_ncbi %>%
+birds<-all_res_sp_zf_hs %>%
   dplyr::select(entrezgene,hog,pval_busted:FDRPval_busted)
 
 imm<-full_join(ggal_mammal_comp, ggal_annot) %>%
   filter(!is.na(entrezID)) %>%
   full_join(birds, by=c("entrezID" = "entrezgene")) %>% filter(!is.na(hog))
 
+imm <- imm %>% distinct(hog, .keep_all=TRUE)
 
+imm %>% filter(vip)
 
 #############################################################################
 ###Use combined dataset to make inferences about similarity in selection###
@@ -150,7 +137,7 @@ pip_pval_plot <- imm %>% filter(!is.na(mammal_logp), !is.na(bird_logp)) %>%
   theme(legend.position = "top")
 
 plot_grid(vip_pval_plot, bip_pval_plot, pip_pval_plot,ncol=3)
-ggsave(filename = "04_output_bird_mammal_comparison_results/mammal_bird_pval_plots.pdf",width = 8, height=3)
+ggsave(filename = "05_output_bird_mammal_comparison_results/mammal_bird_pval_plots.pdf",width = 8, height=3)
 
 
 #imm %>% filter(mammal_logp > 8, bird_logp > 8) %>% dplyr::select(entrezID, vip) %>% print.data.frame
@@ -213,7 +200,7 @@ for (i in 1:length(qvals)){
 
 qval_res <- qval_res_list %>% bind_rows
 
-write_csv(qval_res,path="04_output_bird_mammal_comparison_results/mammal_bird_prop_selected_test_allq_results.csv")
+write_csv(qval_res,path="05_output_bird_mammal_comparison_results/mammal_bird_prop_selected_test_allq_results.csv")
 
 
 ggplot(qval_res,aes(factor(qval,levels=c("0.1","0.01","0.001","1e-04")),prop_sel_both,fill=factor(class,levels=c("all_genes","non-immune","vips","bips","pips")))) + geom_bar(stat = "identity",position="dodge") +
@@ -230,7 +217,7 @@ ggplot(comp_propsig_clean, aes(factor(class,levels=c("all","vips","bips","pips")
   theme_classic() +
   ylab("proportion selected") +
   xlab("class")
-ggsave("04_output_bird_mammal_comparison_results/proportion_selected_birds_mammals.pdf")
+ggsave("05_output_bird_mammal_comparison_results/proportion_selected_birds_mammals.pdf")
 
 
 ###Compare proportions of genes selected in both mammals and birds at different q-value cutoffs

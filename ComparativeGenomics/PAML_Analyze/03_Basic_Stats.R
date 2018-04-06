@@ -1,9 +1,15 @@
 setwd("~/Dropbox/BirdImmuneGeneEvolution")
 library(tidyverse)
 
-######################################################################
-##Basic dataset characteristics#######################################
-######################################################################
+#Load NCBI annotated dataset - output from script 02
+
+load("02_output_annotated_data/all_res_zf_hs.Rdat")
+
+
+#######################################################################################################################
+#Basic dataset characteristics
+#######################################################################################################################
+
 #How many genes in gene tree and species tree datasets?
 all_res_gene_ncbi %>%
   summarize(n())
@@ -26,7 +32,7 @@ all_res_gene_ncbi %>%
   filter(!is.na(entrezgene), !is.na(entrezgene_zf)) %>%
   summarize(n())
 
-#How many hogs coudl not be assigned to a gene ID?
+#How many hogs could not be assigned to a gene ID?
 all_res_gene_ncbi %>%
   filter(is.na(entrezgene), is.na(entrezgene_zf)) %>%
   summarize(n())
