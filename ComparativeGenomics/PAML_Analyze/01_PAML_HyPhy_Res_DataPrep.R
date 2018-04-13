@@ -165,11 +165,7 @@ omega_m8 <- function(hogid,results){
 gene_trees <- paml_res_m0 %>%
   filter(species_tree == "False") %>%
   pull(hog_treenum)
-# sp_trees <- paml_res_m0 %>%
-#   separate(hog_treenum,into=c("hog","treenum")) %>%
-#   filter(treenum == "1") %>%
-#   unite(hog,treenum,col="hog_treenum") %>%
-#   pull(hog_treenum)
+
 sp_trees <- paml_res_m0 %>%
   filter(species_tree == "True") %>%
   pull(hog_treenum)
@@ -235,16 +231,31 @@ paml_pval_allgenes_gene <- paml_pval_allgenes_gene %>% tbl_df %>%
 paml_pval_allgenes_sp <- paml_pval_allgenes_sp %>% tbl_df %>%
   mutate(hog_treenum = as.character(hog_treenum))
 
+#Add M0 model results back in, keeping treelen_m0, kappa_m0 and omega_m0
+paml_pval_allgenes_gene <- paml_pval_allgenes_gene %>%
+  left_join(paml_res_m0,by="hog_treenum") %>%
+  dplyr::select(-species_tree,-newick_string, -lnl_m0) %>%
+  dplyr::rename(Omega_m0 = omega_m0, Kappa_m0 = kappa_m0)
+paml_pval_allgenes_sp <- paml_pval_allgenes_sp %>%
+  left_join(paml_res_m0,by="hog_treenum") %>%
+  dplyr::select(-species_tree,-newick_string, -lnl_m0) %>%
+  dplyr::rename(Omega_m0 = omega_m0, Kappa_m0 = kappa_m0)
+
+#Remove HOG 2337, which got reduced to only 6 nucleotides
+paml_pval_allgenes_gene <- paml_pval_allgenes_gene %>%
+  filter(hog != "2337")
+
 save(paml_pval_allgenes_gene,paml_pval_allgenes_sp,file="01_output_processed_data/paml_pvals_allgenes.RDat")
 
 #######################################################################################################################
 #FDR Hyphy results, combine datasets
 #######################################################################################################################
 
-#Calculate adusted p-values for Busted analyses
+#Calculate adusted p-values for Busted analyses, remove problematic hog
 hyphy_res_gene <- hyphy_res %>%
   filter(hog_treenum %in% gene_trees) %>%
-  mutate(FDRPval_busted = p.adjust(pval_busted,method="BH"))
+  mutate(FDRPval_busted = p.adjust(pval_busted,method="BH")) %>%
+  filter(hog_treenum != "2337_1")
 
 hyphy_res_sp <- hyphy_res %>%
   filter(hog_treenum %in% sp_trees) %>%

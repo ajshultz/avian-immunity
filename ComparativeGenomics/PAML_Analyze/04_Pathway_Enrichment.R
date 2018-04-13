@@ -35,8 +35,6 @@ all_sig_sp <- all_res_sp_ncbi %>%
   filter(FDRPval_m1m2 < 0.05 & FDRPval_m2m2a < 0.05 & FDRPval_m7m8 < 0.05 & FDRPval_m8m8a < 0.05 & FDRPval_busted < 0.05) %>%
   pull(entrezgene)
 
-#How many genes are different between the two significant sets?
-length(setdiff(all_sig_sp,all_sig_gene))
 
 #######################################################################################################################
 #Pathway Enrichment
@@ -52,6 +50,11 @@ write_csv(summary(all_genes_k), path="04_output_pathway_results/chicken_genetree
 all_genes_nocutoff_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
 
 write_csv(summary(all_genes_nocutoff_k), path="04_output_pathway_results/chicken_genetree_pathwayres_nocutoffs.csv")
+
+#Which genes are present in each pathway for this dataset?
+all_genes_tested_nocutoff_k <- enrichKEGG(all_tested_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
+
+write_csv(summary(all_genes_tested_nocutoff_k), path="04_output_pathway_results/chicken_genetree_allgenestested_pathwayres_nocutoffs.csv")
 
 #Species trees, p<0.05, q<0.05
 all_sp_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp,keyType="ncbi-geneid")

@@ -44,6 +44,12 @@ enard <- enard_orig %>%
   summarize(bs_ct = sum(propsel>0)) %>%
   ungroup
 
+#Create dataset with mammal data only annotated with immune gene categories:
+mammals_only <- enard %>%
+  left_join(mammal_annot) %>%
+  replace_na(list(vip = FALSE, bip = FALSE, pip = FALSE)) %>%
+  mutate(FDRPval_busted = p.adjust(BUSTED, method="BH"))
+
 #Add in data from primate specific testing, and combine both mammal datasets
 primate<-read_tsv("05_input_mammal_data/primate-9sp-data.txt") %>%
   dplyr::select(ensID = Ensembl.Gene.ID, psr = PSR.total) %>%
@@ -64,7 +70,7 @@ mammal_clean <- all_res_sp_zf_hs %>%
 
 #Combine bird and mammal datasets, only keep BUSTED results to ensure direct comparisons with mammals.
 birds<-all_res_sp_zf_hs %>%
-  dplyr::select(entrezgene,entrezgene_hs,hog,pval_busted:FDRPval_busted,bip,vip,pip)
+  dplyr::select(entrezgene,entrezgene_hs,ensembl_gene_id_hs,hog,pval_busted:FDRPval_busted,bip,vip,pip)
 
 imm<-full_join(mammal_clean, birds) %>%
   filter(!is.na(hog)) %>%
@@ -109,6 +115,118 @@ plot_grid(vip_pval_plot, bip_pval_plot, pip_pval_plot,ncol=3)
 ggsave(filename = "05_output_bird_mammal_comparison_results/mammal_bird_pval_plots.pdf",width = 8, height=3)
 
 
+########
+#Calculate numbers of genes in birds with q<0.1 - q<0.0001 and Fisher's exact testes for significance
+birds_singles <- birds %>%
+  distinct(hog,.keep_all=TRUE) %>%
+  mutate(non_immune = as.logical(vip == FALSE & bip == FALSE & pip == FALSE)) %>%
+  filter(hog %in% imm$hog)
+
+qvals <- c(0.1,0.01,0.001,0.0001)
+qval_res_list <- list()
+
+for (i in 1:length(qvals)){
+  
+  comp_propsig <- matrix(nrow=5,ncol=13)
+  comp_propsig[,1] <- c("non-immune","vips","bips","pips","all_genes")
+  
+  #Fisher's exact tests
+  comp_propsig[1,2:9] <- birds_singles %>% with(., table(non_immune, FDRPval_busted < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[2,2:9] <- birds_singles %>% with(., table(vip, FDRPval_busted < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[3,2:9] <- birds_singles %>% with(., table(bip, FDRPval_busted < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[4,2:9] <- birds_singles %>% with(., table(pip, FDRPval_busted < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[5,2:9] <- NA
+  
+  #proportions selected in both
+  comp_propsig[1,10:11] <- birds_singles %>% filter(non_immune == TRUE) %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  comp_propsig[2,10:11] <- birds_singles %>% filter(vip == TRUE) %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  comp_propsig[3,10:11] <- birds_singles %>% filter(bip == TRUE) %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  comp_propsig[4,10:11] <- birds_singles %>% filter(pip == TRUE) %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  comp_propsig[5,10:11] <- birds_singles %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  
+  comp_propsig[,12] <- qvals[i]
+  
+  #number of genes in each category
+  comp_propsig[1,13] <- birds_singles %>% filter(!is.na(FDRPval_busted)) %>% filter(non_immune == TRUE) %>% summarize(n()) %>% pull
+  comp_propsig[2,13] <- birds_singles %>% filter(vip == TRUE) %>% summarize(n()) %>% pull
+  comp_propsig[3,13] <- birds_singles %>% filter(bip == TRUE) %>% summarize(n()) %>% pull
+  comp_propsig[4,13] <- birds_singles %>% filter(pip == TRUE) %>% summarize(n()) %>% pull
+  comp_propsig[5,13] <- birds_singles %>% summarize(n()) %>% pull
+  
+  colnames(comp_propsig) <- c("class","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","prop_no","prop_sel_both","qval","n.genes")
+  
+  #Clean up, select relevant columns
+  comp_propsig_clean <- comp_propsig %>%
+    as.tibble %>%
+    mutate(p.value=round(as.numeric(p.value),digits = 4),odds.ratio=round(as.numeric(estimated.odds.ratio),digits=2),prop_sel_both=round(as.numeric(prop_sel_both),digits=3), conf.lower=round(as.numeric(conf.int1),digits=3), conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
+    dplyr::select(class,qval,n.genes,odds.ratio,conf.lower,conf.upper,p.value,prop_sel_both)
+  
+  
+  qval_res_list[[i]] <- comp_propsig_clean
+}
+
+qval_res_birds <- qval_res_list %>% bind_rows
+
+write_csv(qval_res_birds,path="05_output_bird_mammal_comparison_results/birds_only_prop_selected_test_allq_results_joint_hogs_only.csv")
+
+
+#######
+#Calculate numbers of genes in mammals with q<0.1 - q<0.0001 and Fisher's exact testes for significance
+mammals_only <- mammals_only %>%
+  mutate(non_immune = as.logical(vip == FALSE & bip == FALSE & pip == FALSE)) %>%
+#  filter(ensID %in% imm$ensembl_gene_id_hs)
+
+qvals <- c(0.1,0.01,0.001,0.0001)
+qval_res_list <- list()
+
+for (i in 1:length(qvals)){
+  
+  comp_propsig <- matrix(nrow=5,ncol=13)
+  comp_propsig[,1] <- c("non-immune","vips","bips","pips","all_genes")
+  
+  #Fisher's exact tests
+  comp_propsig[1,2:9] <- mammals_only %>% with(., table(non_immune, FDRPval_busted < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[2,2:9] <- mammals_only %>% with(., table(vip, FDRPval_busted < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[3,2:9] <- mammals_only %>% with(., table(bip, FDRPval_busted < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[4,2:9] <- mammals_only %>% with(., table(pip, FDRPval_busted < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[5,2:9] <- NA
+  
+  #proportions selected in both
+  comp_propsig[1,10:11] <- mammals_only %>% filter(non_immune == TRUE) %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  comp_propsig[2,10:11] <- mammals_only %>% filter(vip == TRUE) %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  comp_propsig[3,10:11] <- mammals_only %>% filter(bip == TRUE) %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  comp_propsig[4,10:11] <- mammals_only %>% filter(pip == TRUE) %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  comp_propsig[5,10:11] <- mammals_only %>% with(., prop.table(table(FDRPval_busted < qvals[i])))
+  
+  comp_propsig[,12] <- qvals[i]
+  
+  #number of genes in each category
+  comp_propsig[1,13] <- mammals_only %>% filter(!is.na(FDRPval_busted)) %>% filter(non_immune == TRUE) %>% summarize(n()) %>% pull
+  comp_propsig[2,13] <- mammals_only %>% filter(vip == TRUE) %>% summarize(n()) %>% pull
+  comp_propsig[3,13] <- mammals_only %>% filter(bip == TRUE) %>% summarize(n()) %>% pull
+  comp_propsig[4,13] <- mammals_only %>% filter(pip == TRUE) %>% summarize(n()) %>% pull
+  comp_propsig[5,13] <- mammals_only %>% summarize(n()) %>% pull
+  
+  colnames(comp_propsig) <- c("class","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","prop_no","prop_sel_both","qval","n.genes")
+  
+  #Clean up, select relevant columns
+  comp_propsig_clean <- comp_propsig %>%
+    as.tibble %>%
+    mutate(p.value=round(as.numeric(p.value),digits = 4),odds.ratio=round(as.numeric(estimated.odds.ratio),digits=2),prop_sel_both=round(as.numeric(prop_sel_both),digits=3), conf.lower=round(as.numeric(conf.int1),digits=3), conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
+    dplyr::select(class,qval,n.genes,odds.ratio,conf.lower,conf.upper,p.value,prop_sel_both)
+  
+  
+  qval_res_list[[i]] <- comp_propsig_clean
+}
+
+qval_res_mammals <- qval_res_list %>% bind_rows
+
+write_csv(qval_res_mammals,path="05_output_bird_mammal_comparison_results/mammals_only_prop_selected_test_allq_results_joint_hogs_only.csv")
+
+#write_csv(qval_res_mammals,path="05_output_bird_mammal_comparison_results/mammals_only_prop_selected_test_allq_results.csv")
+
+
+########
 #Calculate numbers of genes overlapping at q<0.1 - q<-0.0001 and Fisher's exact tests for significance.
 #Create column to identify non-immune genes (not vips, bips, or pips)
 imm <- imm %>% mutate(non_immune = as.logical(vip == FALSE & bip == FALSE & pip == FALSE))

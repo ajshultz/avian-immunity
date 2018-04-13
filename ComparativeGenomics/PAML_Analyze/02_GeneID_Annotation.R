@@ -45,6 +45,8 @@ save(all_res_gene_ncbi,all_res_sp_ncbi,file="02_output_annotated_data/all_res_nc
 
 ####Add human NCBI gene IDs from biomaRt
 ensembl = useMart("ensembl")
+
+#Use correct datasets - sometimes throws an error for some reason saying the given dataset is not valid. However, it works if you try again once or twice
 ensembl_gg = useDataset("ggallus_gene_ensembl",mart=ensembl)
 ensembl_hs = useDataset("hsapiens_gene_ensembl",mart=ensembl)
 ensembl_zf = useDataset("tguttata_gene_ensembl",mart=ensembl)
