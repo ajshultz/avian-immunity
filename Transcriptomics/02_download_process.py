@@ -271,7 +271,7 @@ def main():
     #Combine sbatch filenames into single object:
     sra_dl_sbatch_filenames = ncbi_sra_dl_sbatch_filenames
     
-    '''      
+   
     #Submit SRA read sbatch files, only allow 20 SRA jobs to run (or pend) at a time (set max_jobs)  
     max_jobs = 20
     sra_dl_jobids = []
@@ -321,7 +321,7 @@ def main():
         if completed_jobids[job] != "COMPLETED":
             print("SRA download and parse job %s failed with code: %s for file %s"%(job,completed_jobids[job],sra_dl_jobid_filename_dict[job]))
     
-    '''
+
     
     #####Final processing and mapping
     #Create output dir for that biosample within the bioproject directory   
@@ -382,7 +382,7 @@ def main():
                     #mapping_jobids.append(mapping_jobid)
                     #mapping_jobid_filename_dict[mapping_jobid] = mapping_filename
                     sleep(1)  
-    '''             
+           
     sleep(60)
        
     while len(mapping_completed_jobids) < len(mapping_jobids):
@@ -409,7 +409,7 @@ def main():
                     proc = Popen('rm %s/%s/sra/%s.sra'%(working_dir,sample_bioproj_dict[sample],sra),shell=True)
             else:
                 print("Something happened with SRA: %s for sample: %s"%(sra,sample))   
-    '''
+
     
     now = datetime.datetime.now()
     print('Scripted finished: %s'%now)     
