@@ -400,7 +400,7 @@ def main():
             print("Kallisto mapping job %s failed with code: %s for file %s"%(job,mapping_completed_jobids[job],mapping_jobid_filename_dict[mapping_jobid]))
             
     #Check that the final Kallisto output is available, if so, remove intermediate files (SRA, fastq)
-    for sample in sample_ncbi_dict]:
+    for sample in sample_ncbi_dict:
         for sra in sample_ncbi_dict[sample]:
             if os.path.isfile("%s/%s/%s/abundances.h5"%workign_dir,sample_bioproj_dict[sample],sample):
                 if os.path.isfile('%s/%s/fastq/%s_1.fastq.gz'%(working_dir,sample_bioproj_dict[sample],sra)):
