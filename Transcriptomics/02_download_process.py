@@ -273,7 +273,7 @@ def main():
     
    
     #Submit SRA read sbatch files, only allow 20 SRA jobs to run (or pend) at a time (set max_jobs)  
-    max_jobs = 20
+    max_jobs = 15
     sra_dl_jobids = []
     completed_jobids = {}
     job_count = 0
