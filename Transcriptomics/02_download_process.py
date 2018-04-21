@@ -402,7 +402,7 @@ def main():
     #Check that the final Kallisto output is available, if so, remove intermediate files (SRA, fastq)
     for sample in sample_ncbi_dict:
         for sra in sample_ncbi_dict[sample]:
-            if os.path.isfile("%s/%s/%s/abundances.h5"%working_dir,sample_bioproj_dict[sample],sample):
+            if os.path.isfile("%s/%s/%s/abundances.h5"%(working_dir,sample_bioproj_dict[sample],sample)):
                 if os.path.isfile('%s/%s/fastq/%s_1.fastq.gz'%(working_dir,sample_bioproj_dict[sample],sra)):
                     proc = Popen('rm %s/%s/fastq/%s*'%(working_dir,sample_bioproj_dict[sample],sra),shell=True)
                 if os.path.isfile('%s/%s/sra/%s.sra'%(working_dir,sample_bioproj_dict[sample],sra)):
