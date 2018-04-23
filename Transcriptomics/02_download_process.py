@@ -169,14 +169,14 @@ def ena_sra_download_sbatch(working_dir,sample_ena_dict,sample_bioproj_dict):
     
                 #ENA uses different directory tree if SRA #s >=0 integers or < 7 integers, so have to take both of those into account.
                 if len(sra) < 10:
-                    cmd_1 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s_1.fastq.gz'%(sp_dir,sra[0:6],sra,sra)
+                    cmd_1 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s_1.fastq.gz'%(bioproj_dir,sra[0:6],sra,sra)
                 else:
-                    cmd_1 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/00%s/%s/%s_1.fastq.gz'%(sp_dir,sra[0:6],sra[-1],sra,sra)
+                    cmd_1 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/00%s/%s/%s_1.fastq.gz'%(bioproj_dir,sra[0:6],sra[-1],sra,sra)
                 #Automatically tried for paired-end data
                 if len(sra) < 10:
-                    cmd_2 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s_2.fastq.gz'%(sp_dir,sra[0:6],sra,sra)
+                    cmd_2 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s_2.fastq.gz'%(bioproj_dir,sra[0:6],sra,sra)
                 else:
-                    cmd_2 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/00%s/%s/%s_2.fastq.gz'%(sp_dir,sra[0:6],sra[-1],sra,sra)
+                    cmd_2 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/00%s/%s/%s_2.fastq.gz'%(bioproj_dir,sra[0:6],sra[-1],sra,sra)
             
                 final_cmd = "%s\n\n%s"%(cmd_1,cmd_2)
     
