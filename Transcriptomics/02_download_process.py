@@ -149,6 +149,47 @@ def ncbi_sra_download_sbatch(working_dir,sample_ncbi_dict,sample_bioproj_dict):
                 sra_dl_sbatch_filenames.append(out_filename)
     
     return(sra_dl_sbatch_filenames)
+    
+def ena_sra_download_sbatch(sp_dir,sample_ena_dict):
+    slurm_script = script_create()
+    sra_dl_sbatch_filenames = []
+    path_to_sratools = "/n/home13/ashultz/sw/progs/sratoolkit.2.8.2-1-centos_linux64/bin/"
+
+    for sample in sample_ena_dict.keys():
+        for sra in sample_ena_dict[sample]:
+            
+            bioproj_dir = "%s/%s"%(working_dir,sample_bioproj_dict[sample])
+
+            #First check if fastq file is already present (already downloaded). If it is, print statment and continue with next sample. 
+            fastq_1_filename = '%s/fastq/%s_1.fastq.gz'%(bioproj_dir,sra)
+            if os.path.isfile(fastq_1_filename):
+                print('%s_1.fastq.gz already present, skipping'%(sra))
+            else:
+                print('Will download %s for sample %s and split'%(sra,sample))
+    
+                #ENA uses different directory tree if SRA #s >=0 integers or < 7 integers, so have to take both of those into account.
+                if len(sra) < 10:
+                    cmd_1 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s_1.fastq.gz'%(sp_dir,sra[0:6],sra,sra)
+                else:
+                    cmd_1 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/00%s/%s/%s_1.fastq.gz'%(sp_dir,sra[0:6],sra[-1],sra,sra)
+                #Automatically tried for paired-end data
+                if len(sra) < 10:
+                    cmd_2 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/%s/%s_2.fastq.gz'%(sp_dir,sra[0:6],sra,sra)
+                else:
+                    cmd_2 = 'wget -P %s/fastq/ ftp://ftp.sra.ebi.ac.uk/vol1/fastq/%s/00%s/%s/%s_2.fastq.gz'%(sp_dir,sra[0:6],sra[-1],sra,sra)
+            
+                final_cmd = "%s\n\n%s"%(cmd_1,cmd_2)
+    
+        #Format sbatch script
+                sra_script = slurm_script.format(partition="shared",time="0-12:00",mem="4000",cores="1",nodes="1",jobid="SRA",sp_dir=bioproj_dir,cmd=final_cmd)
+                out_filename = "%s/scripts/01_sra_download_parse_%s.sbatch"%(bioproj_dir,sra)
+                out_file = open(out_filename,"w")
+                out_file.write(sra_script)
+                out_file.close
+                sra_dl_sbatch_filenames.append(out_filename)
+    
+    return(sra_dl_sbatch_filenames)
+    
 
 
 #Create sbatch files for running Kallisto given paired-end sequencing.
@@ -266,7 +307,7 @@ def main():
     
     #Create sbatch files for ncbi
     if len(sample_ncbi_dict) > 0:
-        ncbi_sra_dl_sbatch_filenames = ncbi_sra_download_sbatch(working_dir,sample_ncbi_dict,sample_bioproj_dict)
+        ncbi_sra_dl_sbatch_filenames = ena_sra_download_sbatch(working_dir,sample_ncbi_dict,sample_bioproj_dict)
     
     #Combine sbatch filenames into single object:
     sra_dl_sbatch_filenames = ncbi_sra_dl_sbatch_filenames
@@ -398,7 +439,7 @@ def main():
     for job in mapping_completed_jobids:
         if mapping_completed_jobids[job] != "COMPLETED":
             print("Kallisto mapping job %s failed with code: %s for file %s"%(job,mapping_completed_jobids[job],mapping_jobid_filename_dict[mapping_jobid]))
-            
+    '''        
     #Check that the final Kallisto output is available, if so, remove intermediate files (SRA, fastq)
     for sample in sample_ncbi_dict:
         for sra in sample_ncbi_dict[sample]:
@@ -410,7 +451,7 @@ def main():
             else:
                 print("Something happened with SRA: %s for sample: %s"%(sra,sample))   
 
-    
+    '''
     now = datetime.datetime.now()
     print('Scripted finished: %s'%now)     
 
