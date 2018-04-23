@@ -363,7 +363,7 @@ def main():
             
             #If no missing second end files, means there is paired end data, run Kallisto in paired-end mode
             if sum(sra_2_missing) == 0:
-                if os.path.isfile("%s/%s/%s/abundances.h5"%(working_dir,sample_bioproj_dict[sample],sample)):
+                if os.path.isfile("%s/%s/%s/abundance.h5"%(working_dir,sample_bioproj_dict[sample],sample)):
                     print("Output already present for sample %s, skipping"%sample)
                 else:
                     mapping_filename = kallisto_paired_sbatch(working_dir,sample, sra_1_list, sra_2_list,bioproj=sample_bioproj_dict[sample],index_name=sample_ref_dict[sample])
@@ -374,7 +374,7 @@ def main():
             
             #If number of missing files is equal to the number of files, assume single end data, run Kallisto in single-end mode
             elif sum(sra_2_missing) == len(sra_2_list):
-                if os.path.isfile("%s/%s/%s/abundances.h5"%(working_dir,sample_bioproj_dict[sample],sample)):
+                if os.path.isfile("%s/%s/%s/abundance.h5"%(working_dir,sample_bioproj_dict[sample],sample)):
                     print("Output already present for sample %s, skipping"%sample)
                 else:
                     mapping_filename = kallisto_single_sbatch(working_dir,sample, sra_1_list,bioproj=sample_bioproj_dict[sample],index_name=sample_ref_dict[sample])
@@ -402,7 +402,7 @@ def main():
     #Check that the final Kallisto output is available, if so, remove intermediate files (SRA, fastq)
     for sample in sample_ncbi_dict:
         for sra in sample_ncbi_dict[sample]:
-            if os.path.isfile("%s/%s/%s/abundances.h5"%(working_dir,sample_bioproj_dict[sample],sample)):
+            if os.path.isfile("%s/%s/%s/abundance.h5"%(working_dir,sample_bioproj_dict[sample],sample)):
                 if os.path.isfile('%s/%s/fastq/%s_1.fastq.gz'%(working_dir,sample_bioproj_dict[sample],sra)):
                     proc = Popen('rm %s/%s/fastq/%s*'%(working_dir,sample_bioproj_dict[sample],sra),shell=True)
                 if os.path.isfile('%s/%s/sra/%s.sra'%(working_dir,sample_bioproj_dict[sample],sra)):
