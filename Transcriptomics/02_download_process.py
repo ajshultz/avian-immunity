@@ -438,7 +438,7 @@ def main():
     #After all jobs have finished, report which jobs failed
     for job in mapping_completed_jobids:
         if mapping_completed_jobids[job] != "COMPLETED":
-            print("Kallisto mapping job %s failed with code: %s for file %s"%(job,mapping_completed_jobids[job],mapping_jobid_filename_dict[mapping_jobid]))
+            print("Kallisto mapping job %s failed with code: %s for file %s"%(job,mapping_completed_jobids[job],mapping_jobid_filename_dict[job]))
     '''        
     #Check that the final Kallisto output is available, if so, remove intermediate files (SRA, fastq)
     for sample in sample_ncbi_dict:
