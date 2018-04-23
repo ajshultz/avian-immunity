@@ -150,7 +150,7 @@ def ncbi_sra_download_sbatch(working_dir,sample_ncbi_dict,sample_bioproj_dict):
     
     return(sra_dl_sbatch_filenames)
     
-def ena_sra_download_sbatch(sp_dir,sample_ena_dict):
+def ena_sra_download_sbatch(working_dir,sample_ena_dict,sample_bioproj_dict):
     slurm_script = script_create()
     sra_dl_sbatch_filenames = []
     path_to_sratools = "/n/home13/ashultz/sw/progs/sratoolkit.2.8.2-1-centos_linux64/bin/"
