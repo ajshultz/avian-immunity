@@ -21,7 +21,7 @@ do
     RESULTS_TREE2_PVALHOLM=$(python parse_bsrel_hog_branch_pvals.py --hog $HOG --results_file $OUTPUT2 --spnames_file $SPNAMES_FILE --pval_type pvalholm)
 
     echo -e "pval\ttree1\t$RESULTS_TREE1_PVAL" >> bsrel_res_parsed_pvals_${DATE}.txt
-    echo -e "pvalholm\ttree1\t$RESULTS_TREE1_PVAL" >> bsrel_res_parsed_pvals_${DATE}.txt
-    echo -e "pval\ttree2\t$RESULTS_TREE2_PVALHOLM" >> bsrel_res_parsed_pvals_${DATE}.txt
+    echo -e "pvalholm\ttree1\t$RESULTS_TREE1_PVALHOLM" >> bsrel_res_parsed_pvals_${DATE}.txt
+    echo -e "pval\ttree2\t$RESULTS_TREE2_PVAL" >> bsrel_res_parsed_pvals_${DATE}.txt
     echo -e "pvalholm\ttree2\t$RESULTS_TREE2_PVALHOLM" >> bsrel_res_parsed_pvals_${DATE}.txt
 done
