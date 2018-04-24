@@ -19,5 +19,5 @@ A series of scripts for studying the evolution of immune genes across birds. Thi
 		
   -hogsToRerun.R: Quick R script to take parsed PAML results and identify HOGs that do not have all PAML models run
 		
-**Population Genomics:**
+**Transcriptomics:**
 
