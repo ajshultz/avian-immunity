@@ -61,6 +61,7 @@ all_paml <- all_paml %>%
 busted_res <- read_tsv("01_input_raw_paml_hyphy_results/busted_all_reruns_11.7.17.txt")
 bsrel_res <- read.table("01_input_raw_paml_hyphy_results/bsrel_res_parsed_ratites_2017-11-01.txt",fill=TRUE) 
 names(bsrel_res) <- c("class", "tree", "hog", "tsel.s", "nsel.s", "tsel.n", "nsel.n", "tnon", "nnon", "strict_branches", "nom_branches")
+bsrel_sp_pval_res <- read_delim("06_input_cluster_by_species/bsrel_res_parsed_pvals_2018-04-23.txt",delim="\t",col_names = c("pval_type","tree","hog", sp_abbr))
 
 #Clean up bs-rel results
 bsrel_res <- bsrel_res %>% tbl_df %>%
@@ -70,6 +71,11 @@ bsrel_res <- bsrel_res %>% tbl_df %>%
   unite(hog,treenum,col="hog_treenum") %>%
   dplyr::select(-drop) %>%
   filter(!is.na(total_sel.n))
+
+bsrel_sp_pval_res <- bsrel_sp_pval_res %>%
+  separate(tree,sep="ee",into=c("drop","treenum")) %>%
+  unite(hog,treenum,col="hog_treenum") %>%
+  dplyr::select(-drop)
 
 #Clean up Busted results
 busted_res <- busted_res %>%
@@ -262,6 +268,14 @@ hyphy_res_sp <- hyphy_res %>%
   mutate(FDRPval_busted = p.adjust(pval_busted,method="BH"))
 
 save(hyphy_res_gene,hyphy_res_sp,file="01_output_processed_data/hyphy_res_allgenes.RDat")
+
+#Subset branch-specific bsrel values
+bsrel_sp_pval_res_gene <- bsrel_sp_pval_res %>%
+  filter(hog_treenum %in% gene_trees)
+bsrel_sp_pval_res_sp <- bsrel_sp_pval_res %>%
+  filter(hog_treenum %in% sp_trees)
+
+save(bsrel_sp_pval_res_gene,bsrel_sp_pval_res_sp,file="01_output_processed_data/bsrel_spval_res.RDat")
 
 all_res_gene <- paml_pval_allgenes_gene %>% full_join(hyphy_res_gene,by="hog_treenum")
 all_res_sp <- paml_pval_allgenes_sp %>% full_join(hyphy_res_sp,by="hog_treenum")

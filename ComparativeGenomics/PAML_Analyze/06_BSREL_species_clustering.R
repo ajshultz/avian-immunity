@@ -68,8 +68,7 @@ n_sig_sp <- all_sel %>%
   rownames_to_column(var = "hog") %>%
   gather(sp_abbr,sel,-hog) %>%
   group_by(hog) %>%
-  summarize(n_sel = sum(sel>0)) %>%
-  print(n=100)
+  summarize(n_sel = sum(sel>0))
 
 
 #PCA
@@ -87,7 +86,6 @@ pdf("06_output_cluster_by_species/pca_sp_scree_plot.pdf")
 plot(pca_sp)
 dev.off()
 
-
 write_csv(data.frame(pca_sp$rotation),"06_output_cluster_by_species/pca_sp_loadings.csv")
 write_csv(data.frame(pca_sp$x),"06_output_cluster_by_species/pca_sp_coordinates.csv")
 
@@ -97,6 +95,14 @@ pca_sp$x %>%
   as.tibble %>%
   ggplot(aes(PC1,PC2,label = rowname)) +
   geom_text()
+
+#####PCA with p-values as input
+load("01_output_processed_data/bsrel_spval_res.RDat")
+
+
+
+
+
 
 #sp_tree_bl <- read.tree("06_input_cluster_by_species/11700.tree1.nwk")
 sp_tree_bl <- read.tree("Alignments/10090.tree1.nwk")
@@ -131,6 +137,11 @@ sp_coord_anno <- sp_coord %>%
   mutate(heart_index = heart_mass_mean/body_mass_mean)
 
 sp_coord_anno %>%
+  ggplot(aes(PC1,log(body_mass_mean_hbabm))) +
+  geom_point()
+
+
+sp_coord_anno %>%
   ggplot(aes(PC1,log(body_mass_mean))) +
   geom_point()
 
@@ -139,25 +150,20 @@ sp_coord_anno %>%
   ggplot(aes(PC1,heart_index)) +
   geom_point()
 
-##Add in dataset with add'l metabolism data
-ji_data <- read_csv("06_input_cluster_by_species/ji_2017_supp_table_7.csv")
-sp_coord_anno <- sp_coord_anno %>%
-  left_join(ji_data, by = c("sp_abbr" = "X1"))
-
 sp_coord_anno %>%
-  ggplot(aes(PC1,`scaled length of CR1`)) +
+  ggplot(aes(PC1,scaled_length_cr1)) +
   geom_point()
 
 sp_coord_anno %>%
-  ggplot(aes(PC1,`assembly size (Gb)`)) +
+  ggplot(aes(PC1,assembly_size_gb)) +
   geom_point()
 
 sp_coord_anno %>%
-  ggplot(aes(PC1,`AGSD genome size (pg)`)) +
+  ggplot(aes(PC1,agsd_genome_size_pg)) +
   geom_point()
 
 sp_coord_anno %>%
-  ggplot(aes(PC1,`mass-specific BMR (W/Kg)`)) +
+  ggplot(aes(PC1,mass_specific_bmr)) +
   geom_point()
 
 sp_coord_anno_df <- sp_coord_anno %>%
