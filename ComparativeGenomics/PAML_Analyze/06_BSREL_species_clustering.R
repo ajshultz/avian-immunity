@@ -68,8 +68,7 @@ n_sig_sp <- all_sel %>%
   rownames_to_column(var = "hog") %>%
   gather(sp_abbr,sel,-hog) %>%
   group_by(hog) %>%
-  summarize(n_sel = sum(sel>0)) %>%
-  print(n=100)
+  summarize(n_sel = sum(sel>0))
 
 
 #PCA
@@ -87,6 +86,63 @@ pdf("06_output_cluster_by_species/pca_sp_scree_plot.pdf")
 plot(pca_sp)
 dev.off()
 
+write_csv(data.frame(pca_sp$rotation),"06_output_cluster_by_species/pca_sp_loadings.csv")
+write_csv(data.frame(pca_sp$x),"06_output_cluster_by_species/pca_sp_coordinates.csv")
+
+pca_sp$x %>%
+  as.data.frame %>%
+  rownames_to_column() %>%
+  as.tibble %>%
+  ggplot(aes(PC1,PC2,label = rowname)) +
+  geom_text()
+
+#####PCA with p-values as input
+load("01_output_processed_data/bsrel_spval_res.RDat")
+
+
+rep_na_mean <- function()
+
+#bsrel_sp_pval_res_gene_raw <- 
+  bsrel_sp_pval_res_gene %>%
+  filter(pval_type == "pval") %>%
+  separate(hog_treenum,into=c("hog","treenum")) %>%
+  dplyr::select(-pval_type,-treenum) %>%
+  gather(sp,pval,-hog) %>%
+  mutate(pval=ifelse(pval==0,1e-18,pval)) %>%
+  mutate(pval=log10(pval)) %>%
+  mutate(hog=paste0("hog_",hog))
+  spread(hog,pval)
+  as.data.frame
+rownames(bsrel_sp_pval_res_gene_raw) <- bsrel_sp_pval_res_gene_raw$hog
+bsrel_sp_pval_res_gene_raw$hog <- NULL
+#Set all "0" values to 1e-18 (min is 1e-17), so can take log10
+bsrel_sp_pval_res_gene_raw[bsrel_sp_pval_res_gene_raw == 0] <- 1e-18
+bsrel_sp_pval_res_gene_raw <- apply(bsrel_sp_pval_res_gene_raw,MARGIN = 1,FUN = log10)
+
+#PCA
+#transpose and replace missing values with mean
+#bsrel_sp_pval_res_gene_raw <- t(bsrel_sp_pval_res_gene_raw)
+f1 <- function(vec) { 
+  m <- mean(vec, na.rm = TRUE) 
+  vec[is.na(vec)] <- m 
+  return(vec) 
+} 
+
+bsrel_sp_pval_res_gene_raw <- apply(bsrel_sp_pval_res_gene_raw,2,f1) 
+bsrel_sp_pval_res_gene_raw[is.na(bsrel_sp_pval_res_gene_raw),is.na(bsrel_sp_pval_res_gene_raw)]
+
+pca_pvals <- prcomp(bsrel_sp_pval_res_gene_raw)
+summary(pca_pvals)
+
+loading <- pca_pvals$rotation %>%
+  as.data.frame %>%
+  rownames_to_column("hog") %>%
+  as.tibble
+
+#Scree plot
+pdf("06_output_cluster_by_species/pca_sp_scree_plot.pdf")
+plot(pca_sp)
+dev.off()
 
 write_csv(data.frame(pca_sp$rotation),"06_output_cluster_by_species/pca_sp_loadings.csv")
 write_csv(data.frame(pca_sp$x),"06_output_cluster_by_species/pca_sp_coordinates.csv")
@@ -97,6 +153,9 @@ pca_sp$x %>%
   as.tibble %>%
   ggplot(aes(PC1,PC2,label = rowname)) +
   geom_text()
+
+
+
 
 #sp_tree_bl <- read.tree("06_input_cluster_by_species/11700.tree1.nwk")
 sp_tree_bl <- read.tree("Alignments/10090.tree1.nwk")
@@ -131,6 +190,11 @@ sp_coord_anno <- sp_coord %>%
   mutate(heart_index = heart_mass_mean/body_mass_mean)
 
 sp_coord_anno %>%
+  ggplot(aes(PC1,log(body_mass_mean_hbabm))) +
+  geom_point()
+
+
+sp_coord_anno %>%
   ggplot(aes(PC1,log(body_mass_mean))) +
   geom_point()
 
@@ -139,25 +203,20 @@ sp_coord_anno %>%
   ggplot(aes(PC1,heart_index)) +
   geom_point()
 
-##Add in dataset with add'l metabolism data
-ji_data <- read_csv("06_input_cluster_by_species/ji_2017_supp_table_7.csv")
-sp_coord_anno <- sp_coord_anno %>%
-  left_join(ji_data, by = c("sp_abbr" = "X1"))
-
 sp_coord_anno %>%
-  ggplot(aes(PC1,`scaled length of CR1`)) +
+  ggplot(aes(PC1,scaled_length_cr1)) +
   geom_point()
 
 sp_coord_anno %>%
-  ggplot(aes(PC1,`assembly size (Gb)`)) +
+  ggplot(aes(PC1,assembly_size_gb)) +
   geom_point()
 
 sp_coord_anno %>%
-  ggplot(aes(PC1,`AGSD genome size (pg)`)) +
+  ggplot(aes(PC1,agsd_genome_size_pg)) +
   geom_point()
 
 sp_coord_anno %>%
-  ggplot(aes(PC1,`mass-specific BMR (W/Kg)`)) +
+  ggplot(aes(PC1,mass_specific_bmr)) +
   geom_point()
 
 sp_coord_anno_df <- sp_coord_anno %>%

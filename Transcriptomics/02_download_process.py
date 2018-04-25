@@ -209,7 +209,7 @@ def  kallisto_paired_sbatch(working_dir,sample, sra_1_list, sra_2_list,bioproj,i
 	cmd_1 = 'module load gcc/4.8.2-fasrc01 kallisto/0.43.1-fasrc01'
 
     #Run Kallisto
-	cmd_2 = 'kallisto quant -i ./indexes/%s -o %s %s'%(index_name,output_dir,sra_combo)
+	cmd_2 = 'kallisto quant -i ./indexes/%s -o %s -b 100 %s'%(index_name,output_dir,sra_combo)
 
 	cmd_list = [cmd_1,cmd_2]
 
@@ -239,7 +239,7 @@ def  kallisto_single_sbatch(working_dir,sample, sra_1_list,bioproj,index_name):
 	cmd_1 = 'module load gcc/4.8.2-fasrc01 kallisto/0.43.1-fasrc01'
 
     #Run Kallisto
-	cmd_2 = 'kallisto quant -i ./indexes/%s -o %s --single -l 250 -s 50 %s'%(index_name,output_dir,sra_combo)
+	cmd_2 = 'kallisto quant -i ./indexes/%s -o %s --single -l 250 -s 50 -b 100 %s'%(index_name,output_dir,sra_combo)
 
 	cmd_list = [cmd_1,cmd_2]
 
