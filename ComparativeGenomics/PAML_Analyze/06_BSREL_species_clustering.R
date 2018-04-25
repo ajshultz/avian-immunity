@@ -100,6 +100,59 @@ pca_sp$x %>%
 load("01_output_processed_data/bsrel_spval_res.RDat")
 
 
+rep_na_mean <- function()
+
+#bsrel_sp_pval_res_gene_raw <- 
+  bsrel_sp_pval_res_gene %>%
+  filter(pval_type == "pval") %>%
+  separate(hog_treenum,into=c("hog","treenum")) %>%
+  dplyr::select(-pval_type,-treenum) %>%
+  gather(sp,pval,-hog) %>%
+  mutate(pval=ifelse(pval==0,1e-18,pval)) %>%
+  mutate(pval=log10(pval)) %>%
+  mutate(hog=paste0("hog_",hog))
+  spread(hog,pval)
+  as.data.frame
+rownames(bsrel_sp_pval_res_gene_raw) <- bsrel_sp_pval_res_gene_raw$hog
+bsrel_sp_pval_res_gene_raw$hog <- NULL
+#Set all "0" values to 1e-18 (min is 1e-17), so can take log10
+bsrel_sp_pval_res_gene_raw[bsrel_sp_pval_res_gene_raw == 0] <- 1e-18
+bsrel_sp_pval_res_gene_raw <- apply(bsrel_sp_pval_res_gene_raw,MARGIN = 1,FUN = log10)
+
+#PCA
+#transpose and replace missing values with mean
+#bsrel_sp_pval_res_gene_raw <- t(bsrel_sp_pval_res_gene_raw)
+f1 <- function(vec) { 
+  m <- mean(vec, na.rm = TRUE) 
+  vec[is.na(vec)] <- m 
+  return(vec) 
+} 
+
+bsrel_sp_pval_res_gene_raw <- apply(bsrel_sp_pval_res_gene_raw,2,f1) 
+bsrel_sp_pval_res_gene_raw[is.na(bsrel_sp_pval_res_gene_raw),is.na(bsrel_sp_pval_res_gene_raw)]
+
+pca_pvals <- prcomp(bsrel_sp_pval_res_gene_raw)
+summary(pca_pvals)
+
+loading <- pca_pvals$rotation %>%
+  as.data.frame %>%
+  rownames_to_column("hog") %>%
+  as.tibble
+
+#Scree plot
+pdf("06_output_cluster_by_species/pca_sp_scree_plot.pdf")
+plot(pca_sp)
+dev.off()
+
+write_csv(data.frame(pca_sp$rotation),"06_output_cluster_by_species/pca_sp_loadings.csv")
+write_csv(data.frame(pca_sp$x),"06_output_cluster_by_species/pca_sp_coordinates.csv")
+
+pca_sp$x %>%
+  as.data.frame %>%
+  rownames_to_column() %>%
+  as.tibble %>%
+  ggplot(aes(PC1,PC2,label = rowname)) +
+  geom_text()
 
 
 

@@ -57,11 +57,15 @@ all_paml <- all_paml %>%
   distinct(hog_tree_model,.keep_all=TRUE) %>%
   dplyr::select(-hog_tree_model)
 
+#Read in species order
+species_info <- read_csv("06_input_cluster_by_species/sackton_et_al_species_list.csv")
+sp_abbr <- species_info$code
+
 #Read in HyPhy results
 busted_res <- read_tsv("01_input_raw_paml_hyphy_results/busted_all_reruns_11.7.17.txt")
 bsrel_res <- read.table("01_input_raw_paml_hyphy_results/bsrel_res_parsed_ratites_2017-11-01.txt",fill=TRUE) 
 names(bsrel_res) <- c("class", "tree", "hog", "tsel.s", "nsel.s", "tsel.n", "nsel.n", "tnon", "nnon", "strict_branches", "nom_branches")
-bsrel_sp_pval_res <- read_delim("06_input_cluster_by_species/bsrel_res_parsed_pvals_2018-04-23.txt",delim="\t",col_names = c("pval_type","tree","hog", sp_abbr))
+bsrel_sp_pval_res <- read_delim("01_input_raw_paml_hyphy_results/bsrel_res_parsed_pvals_2018-04-24.txt",delim="\t",col_names = c("pval_type","tree","hog", sp_abbr))
 
 #Clean up bs-rel results
 bsrel_res <- bsrel_res %>% tbl_df %>%
