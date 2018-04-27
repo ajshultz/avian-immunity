@@ -1,0 +1,32 @@
+Read in sleuth data
+Loosely based on https://github.com/pachterlab/bears_analyses/blob/master/sleuth.R
+
+Preparation (load libraries and target id to gene id data)
+
+```{r}
+library(tidyverse)
+library(sleuth)
+t2g<-read_tsv("../t2g_key.clean", col_names = c("target_id", "gene_id"))
+```
+
+Function to prep data based on a BioProject ID
+
+```{r}
+load_data_for_sleuth <- function(bioproject) {
+  file <- paste0(bioproject, ".prep", collapse="")
+  s2c <- read_tsv(file)
+  sleuth_prep(s2c, target_mapping=t2g, num_cores=1, aggregation_column = "gene_id")
+}
+```
+
+Function to fit full and reduced model to data
+
+```{r}
+fit_models_to_data <- function(so, full_model, reduced_model) {
+  so<-sleuth_fit(so, as.formula(full_model), 'full')
+  so<-sleuth_fit(so, as.formula(reduced_model), 'reduced')
+  so<-sleuth_lrt(so, "reduced", "full") 
+  return(so)
+}
+```
+
