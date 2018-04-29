@@ -9,6 +9,7 @@ t2g<-read_tsv("../t2g_key.clean", col_names = c("target_id", "gene_id"))
 #Function to prep data based on a BioProject ID
 
 load_samples_for_sleuth <- function(bioproject) {
+  print(paste0("Working on BioProject: ", bioproject, collapse=""))
   file <- paste0(bioproject, ".prep", collapse="")
   read_tsv(file) %>% distinct
 }
@@ -16,14 +17,16 @@ load_samples_for_sleuth <- function(bioproject) {
 #Function to fit full and reduced model to data
 
 load_sleuth_obj <- function(s2c) {
-  so<-sleuth_prep(s2c, target_mapping=t2g, num_cores=1, aggregation_column = "gene_id", extra_bootstrap_summary = TRUE, transformation_function = function(x) log2(x + 0.5))
+  so<-sleuth_prep(s2c, target_mapping=t2g, num_cores=4, aggregation_column = "gene_id", extra_bootstrap_summary = TRUE, transformation_function = function(x) log2(x + 0.5))
   return(so)
 }
 
 export_pca <- function(so, condition, bioproject) {
   plot_pca(so, color_by = condition, units = "scaled_reads_per_base", text_labels = TRUE)
   file <- paste0(bioproject, "-", condition, ".pca.pdf", collapse="")
+  sampfile <- paste0(bioproject, ".s2c.tsv", collapse="")
   ggsave(file)
+  so$sample_to_covariates %>% write_tsv(sampfile)
 }
 
 export_results <- function(so, condition, model, bioproject, infect) {
@@ -107,7 +110,7 @@ export_results(so, "treatmentPlasmodium_chabaudi", "treatment", bioproject, "Pla
 #timepoints vs 0
 so<-sleuth_fit(so, ~timepoint+genotype, "timepoint")
 export_results(so, "timepoint3", "timepoint", bioproject, "Plasmodium_chabaudi")
-export_results(so, "timepoint", "timepoint", bioproject, "Plasmodium_chabaudi")
+export_results(so, "timepoint5", "timepoint", bioproject, "Plasmodium_chabaudi")
 export_results(so, "timepoint6", "timepoint", bioproject, "Plasmodium_chabaudi")
 export_results(so, "timepoint7", "timepoint", bioproject, "Plasmodium_chabaudi")
 export_results(so, "timepoint8", "timepoint", bioproject, "Plasmodium_chabaudi")
@@ -244,7 +247,7 @@ allsamples<-load_samples_for_sleuth(bioproject)
 allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="control")
 
 #split by genotype and time, treat sex as blocking variable
-for (i in c(2, 6, 10)) {
+for (i in c(2, 6)) {
   for (j in c("resistant", "susceptible")) {
     bioproject2 <- paste0(bioproject, "-time", i, "-", j, collapse = "")
     subsample <- allsamples %>% filter(time == i, genotype == j)
@@ -310,7 +313,7 @@ export_results(so, "timepoint24", "timepoint", bioproject, "Mycoplasma_agalactia
 
 bioproject<-"PRJNA174747"
 allsamples<-load_samples_for_sleuth(bioproject)
-allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="none")
+allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="control")
 
 so<-load_sleuth_obj(allsamples)
 export_pca(so, "treatment", bioproject)
@@ -361,113 +364,9 @@ export_results(so, "treatmentEcoli", "treatment", bioproject, "Ecoli")
 so<-sleuth_fit(so, ~phenotype, "phenotype")
 export_results(so, "phenotypehigh_dose", "phenotype", bioproject, "Ecoli")
 export_results(so, "phenotypelow_dose", "phenotype", bioproject, "Ecoli")
-export_results(so, "phenotypesepsis_dose", "phenotype", bioproject, "Ecoli")
+export_results(so, "phenotypesepsis", "phenotype", bioproject, "Ecoli")
 
 ###################
-
-##BIOPROJECT: PRJNA257687
-
-bioproject<-"PRJNA257687"
-allsamples<-load_samples_for_sleuth(bioproject)
-allsamples$time = relevel(as.factor(allsamples$time), ref="0")
-#this one is a mess, just going to make new columns
-#first is comparison of just bird2 - bird4, 21+31 vs 0
-#second is comparison of all individuals infected vs not (pooling time 0 + control)
-allsamples <- allsamples %>% 
-  mutate(treatment2 = ifelse(treatment == "Avian_malaria" & time == "0", "Control", treatment)) %>%
-  mutate(treatment3 = ifelse(treatment == "Avian_malaria" & time == "0", "Naive", treatment))
-allsamples$treatment2 = relevel(as.factor(allsamples$treatment2), ref="Control")
-allsamples$treatment3 = relevel(as.factor(allsamples$treatment3), ref="Naive")
-
-so<-load_sleuth_obj(allsamples)
-
-#pca
-export_pca(so, "treatment", bioproject)
-export_pca(so, "treatment2", bioproject)
-export_pca(so, "treatment3", bioproject)
-export_pca(so, "time", bioproject)
-
-#analysis
-#treatment plas vs control
-so<-sleuth_fit(so, ~treatment, "treatment2")
-so<-sleuth_fit(so, ~treatment, "treatment3")
-export_results(so, "treatmentAvian_malaria", "treatment2", bioproject, "Avian_malaria")
-export_results(so, "treatmentAvian_malaria", "treatment3", bioproject, "Avian_malaria")
-
-###################
-
-
-##BIOPROJECT: PRJNA279199
-
-bioproject<-"PRJNA279199"
-allsamples<-load_samples_for_sleuth(bioproject)
-allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="PRE")
-
-so<-load_sleuth_obj(allsamples)
-
-#pca
-export_pca(so, "treatment", bioproject)
-export_pca(so, "location", bioproject)
-export_pca(so, "sex", bioproject)
-
-#analysis
-#treatment plas vs control
-so<-sleuth_fit(so, ~treatment+location+sex, "treatment")
-export_results(so, "treatmentDX", "treatment", bioproject, "Plasmodium_vivax")
-
-###################
-
-
-##BIOPROJECT: PRJNA279487
-
-bioproject<-"PRJNA279487"
-allsamples<-load_samples_for_sleuth(bioproject)
-allsamples$phenotype = relevel(as.factor(allsamples$genotype), ref="control")
-
-#susceptible and resistant are actually phenotypes, compare each to control at separate time points
-
-so<-load_sleuth_obj(allsamples)
-
-#split by time
-for (i in c(1, 5)) {
-  bioproject2 <- paste0(bioproject, "-time", i, collapse = "")
-  subsample <- allsamples %>% filter(time == i)
-  so<-load_sleuth_obj(subsample)
-  export_pca(so, "treatment", bioproject2)
-  export_pca(so, "phenotype", bioproject2)
-  so<-sleuth_fit(so, ~phenotype, "treatment")
-  export_results(so, "phenotypesusceptible", "phenotype", bioproject2, "Ecoli")
-  export_results(so, "phenotyperesistant", "phenotype", bioproject2, "Ecoli")
-}
-
-
-###################
-
-
-##BIOPROJECT: PRJNA284293
-
-bioproject<-"PRJNA284293"
-allsamples<-load_samples_for_sleuth(bioproject)
-allsamples$phenotype = relevel(as.factor(allsamples$genotype), ref="control")
-
-#susceptible and resistant are actually phenotypes, compare each to control at separate time points
-
-so<-load_sleuth_obj(allsamples)
-
-#split by time
-for (i in c(1, 5)) {
-  bioproject2 <- paste0(bioproject, "-time", i, collapse = "")
-  subsample <- allsamples %>% filter(time == i)
-  so<-load_sleuth_obj(subsample)
-  export_pca(so, "treatment", bioproject2)
-  export_pca(so, "phenotype", bioproject2)
-  so<-sleuth_fit(so, ~phenotype, "treatment")
-  export_results(so, "phenotypesusceptible", "phenotype", bioproject2, "Ecoli")
-  export_results(so, "phenotyperesistant", "phenotype", bioproject2, "Ecoli")
-}
-
-###################
-
 
 ##BIOPROJECT: PRJNA288323
 
@@ -486,7 +385,7 @@ for (i in c(1, 5)) {
   so<-load_sleuth_obj(subsample)
   export_pca(so, "treatment", bioproject2)
   export_pca(so, "phenotype", bioproject2)
-  so<-sleuth_fit(so, ~phenotype, "treatment")
+  so<-sleuth_fit(so, ~phenotype, "phenotype")
   export_results(so, "phenotypesusceptible", "phenotype", bioproject2, "Ecoli")
   export_results(so, "phenotyperesistant", "phenotype", bioproject2, "Ecoli")
 }
@@ -535,11 +434,13 @@ for (i in c(3, 6, 12, 18)) {
 
 ################
 
+
+
 ##Bioproject PRJNA394119
 
 bioproject<-"PRJNA394119"
 allsamples<-load_samples_for_sleuth(bioproject)
-allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="control")
+allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="Control")
 
 #split into timepoint, genotype as co-factor
 
@@ -613,7 +514,7 @@ for (j in c("lung", "brain")) {
     subsample <- allsamples %>% filter(tissue == j)
     so<-load_sleuth_obj(subsample)
     export_pca(so, "treatment", bioproject2)
-    export_pca(so, "time", bioproject2)    
+    export_pca(so, "timepoint", bioproject2)    
     so<-sleuth_fit(so, ~treatment, "treatment")
     export_results(so, "treatmentHeV", "treatment", bioproject2, "HeV")
     export_results(so, "treatmentNiVB", "treatment", bioproject2, "NiVB")
@@ -647,6 +548,7 @@ export_results(so, "timepoint24", "timepoint", bioproject, "influenza")
 
 ################
 
+
 ##BioProject PRJNA314450
 
 bioproject<-"PRJNA314450"
@@ -678,7 +580,7 @@ export_results(so, "timepoint48", "timepoint", bioproject, "Plasmodium_berghei")
 
 bioproject<-"PRJNA352507"
 allsamples<-load_samples_for_sleuth(bioproject)
-allsamples$timet = as.factor(allsamples$time)
+allsamples$time = as.factor(allsamples$time)
 allsamples$time = relevel(allsamples$time, ref="0")
 allsamples$treatment = as.factor(allsamples$treatment)
 allsamples$treatment = relevel(allsamples$treatment, ref="control")
@@ -691,12 +593,12 @@ export_pca(so, "time", bioproject)
 #analysis
 #treatment plas vs control
 so<-sleuth_fit(so, ~treatment, "treatment")
-export_results(so, "treatmentWNVi", "treatment", bioproject, "WNV")
+export_results(so, "treatmentWNV", "treatment", bioproject, "WNV")
 
 #timepoints vs 0
 so<-sleuth_fit(so, ~time, "time")
-export_results(so, "time2", "timepoint", bioproject, "WNV")
-export_results(so, "time4", "timepoint", bioproject, "WNV")
+export_results(so, "time2", "time", bioproject, "WNV")
+export_results(so, "time4", "time", bioproject, "WNV")
 
 
 ##############
@@ -718,3 +620,106 @@ export_results(so, "treatmentH3N2", "treatment", bioproject, "H3N2")
 export_results(so, "treatmentH5N1", "treatment", bioproject, "H5N1")
 export_results(so, "treatmentH1N1", "treatment", bioproject, "H1N1")
 
+###################
+
+
+##BIOPROJECT: PRJNA257687
+
+bioproject<-"PRJNA257687"
+allsamples<-load_samples_for_sleuth(bioproject)
+allsamples$time = relevel(as.factor(allsamples$time), ref="0")
+#this one is a mess, just going to make new columns
+#first is comparison of just bird2 - bird4, 21+31 vs 0
+#second is comparison of all individuals infected vs not (pooling time 0 + control)
+allsamples <- allsamples %>% 
+  mutate(treatment2 = ifelse(treatment == "Avian_malaria" & time == "0", "Control", treatment)) %>%
+  mutate(treatment3 = ifelse(treatment == "Avian_malaria" & time == "0", "Naive", treatment))
+allsamples$treatment2 = relevel(as.factor(allsamples$treatment2), ref="Control")
+allsamples$treatment3 = relevel(as.factor(allsamples$treatment3), ref="Naive")
+
+so<-load_sleuth_obj(allsamples)
+
+#pca
+export_pca(so, "treatment", bioproject)
+export_pca(so, "treatment2", bioproject)
+export_pca(so, "treatment3", bioproject)
+export_pca(so, "time", bioproject)
+
+#analysis
+#treatment plas vs control
+so<-sleuth_fit(so, ~treatment2, "treatment2")
+so<-sleuth_fit(so, ~treatment3, "treatment3")
+export_results(so, "treatment2Avian_malaria", "treatment2", bioproject, "Avian_malaria")
+export_results(so, "treatment3Avian_malaria", "treatment3", bioproject, "Avian_malaria")
+
+###################
+
+
+##BIOPROJECT: PRJNA279199
+
+bioproject<-"PRJNA279199"
+allsamples<-load_samples_for_sleuth(bioproject)
+allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="PRE")
+
+so<-load_sleuth_obj(allsamples)
+
+#pca
+export_pca(so, "treatment", bioproject)
+export_pca(so, "location", bioproject)
+export_pca(so, "sex", bioproject)
+
+#analysis
+#treatment plas vs control
+so<-sleuth_fit(so, ~treatment+location+sex, "treatment")
+export_results(so, "treatmentDX", "treatment", bioproject, "Plasmodium_vivax")
+
+###################
+
+
+##BIOPROJECT: PRJNA279487
+
+bioproject<-"PRJNA279487"
+allsamples<-load_samples_for_sleuth(bioproject)
+allsamples$phenotype = relevel(as.factor(allsamples$genotype), ref="control")
+
+#susceptible and resistant are actually phenotypes, compare each to control at separate time points
+
+so<-load_sleuth_obj(allsamples)
+
+#split by time
+for (i in c(1, 5)) {
+  bioproject2 <- paste0(bioproject, "-time", i, collapse = "")
+  subsample <- allsamples %>% filter(time == i)
+  so<-load_sleuth_obj(subsample)
+  export_pca(so, "treatment", bioproject2)
+  export_pca(so, "phenotype", bioproject2)
+  so<-sleuth_fit(so, ~phenotype, "phenotype")
+  export_results(so, "phenotypesusceptible", "phenotype", bioproject2, "Ecoli")
+  export_results(so, "phenotyperesistant", "phenotype", bioproject2, "Ecoli")
+}
+
+
+###################
+
+
+##BIOPROJECT: PRJNA284293
+
+bioproject<-"PRJNA284293"
+allsamples<-load_samples_for_sleuth(bioproject)
+allsamples$phenotype = relevel(as.factor(allsamples$genotype), ref="control")
+
+#susceptible and resistant are actually phenotypes, compare each to control at separate time points
+
+so<-load_sleuth_obj(allsamples)
+
+#split by time
+for (i in c(1, 5)) {
+  bioproject2 <- paste0(bioproject, "-time", i, collapse = "")
+  subsample <- allsamples %>% filter(time == i)
+  so<-load_sleuth_obj(subsample)
+  export_pca(so, "treatment", bioproject2)
+  export_pca(so, "phenotype", bioproject2)
+  so<-sleuth_fit(so, ~phenotype, "phenotype")
+  export_results(so, "phenotypesusceptible", "phenotype", bioproject2, "Ecoli")
+  export_results(so, "phenotyperesistant", "phenotype", bioproject2, "Ecoli")
+}
