@@ -51,21 +51,21 @@ mammals_only <- enard %>%
   mutate(FDRPval_busted = p.adjust(BUSTED, method="BH"))
 
 #Add in data from primate specific testing, and combine both mammal datasets
-primate<-read_tsv("05_input_mammal_data/primate-9sp-data.txt") %>%
-  dplyr::select(ensID = Ensembl.Gene.ID, psr = PSR.total) %>%
-  mutate(paml_sig = 1)
+#primate<-read_tsv("05_input_mammal_data/primate-9sp-data.txt") %>%
+#  dplyr::select(ensID = Ensembl.Gene.ID, psr = PSR.total) %>%
+#  mutate(paml_sig = 1)
 
-mammal_select <- full_join(enard, primate)
+#mammal_select <- full_join(enard, primate)
 
 #Add hog designations to mammal data, remove missing mammal data (replace by non-sig results, and filter non one-to-one mapping by choosing the minimum busted pvalue, etc.)
 mammal_clean <- all_res_sp_zf_hs %>%
   ungroup() %>%
   dplyr::select(hog,ensembl_gene_id,ensembl_gene_id_hs) %>%
-  right_join(mammal_select,by=c("ensembl_gene_id_hs" = "ensID")) %>%
+  right_join(enard,by=c("ensembl_gene_id_hs" = "ensID")) %>%
   filter(!is.na(hog)) %>%
-  replace_na(list(BUSTED=1, bs_ct=0, psr=0, paml_sig=0)) %>% 
+  replace_na(list(BUSTED=1, bs_ct=0)) %>% 
   group_by(hog) %>% 
-  summarize(bustedp = min(BUSTED, na.rm=T), bs_ct = max(bs_ct, na.rm=T), psr = max(psr, na.rm=T), paml_sig = max(paml_sig, na.rm=T))
+  summarize(bustedp = min(BUSTED, na.rm=T), bs_ct = max(bs_ct, na.rm=T))
   
 
 #Combine bird and mammal datasets, only keep BUSTED results to ensure direct comparisons with mammals.
