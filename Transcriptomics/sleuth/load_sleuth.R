@@ -192,7 +192,7 @@ allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="none")
 #SAMN02665945 - ind 233
 
 #remove these individuals
-all_sub <- allsamples %>% filter(individual == 210 | individual == 212 | individual == 233)
+all_sub <- allsamples %>% filter(individual != 210 & individual != 212 & individual != 233)
 so<-load_sleuth_obj(all_sub)
 export_pca(so, "treatment", bioproject)
 so<-sleuth_fit(so, ~treatment, "treatment")
@@ -327,6 +327,11 @@ export_results(so, "treatmentWNV", "treatment", bioproject, "WNV")
 bioproject<-"PRJNA227801"
 allsamples<-load_samples_for_sleuth(bioproject)
 allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="MOCK")
+
+#remove outliers
+#SAMN02402928, SAMN02402941
+allsamples <- allsamples %>% filter(sample != "SAMN02402928" & sample != "SAMN02402941")
+
 
 #split by genotype and time, treat sex as blocking variable
 for (i in c(2, 4)) {
@@ -481,7 +486,9 @@ bioproject<-"PRJNA285798"
 allsamples<-load_samples_for_sleuth(bioproject)
 
 #use treatment but restrict to eliminate healthy_children_with_bacterial_colonization
-allsamples <- allsamples %>% filter(phenotype != "healthy_children_with_bacterial_colonization")
+#also remove three outliers
+allsamples <- allsamples %>% filter(phenotype != "healthy_children_with_bacterial_colonization") %>%
+	filter(sample != "SAMN03760019" & sample != "SAMN03759961" & sample != "SAMN03759946")
 allsamples$treatment = relevel(as.factor(allsamples$treatment), ref="Negative")
 
 so<-load_sleuth_obj(allsamples)
