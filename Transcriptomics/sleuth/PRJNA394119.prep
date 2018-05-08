@@ -1,4 +1,4 @@
-sample	treatment	time	tissue
+sample	treatment	time	path
 SAMN07349296	Mgallisepticum	1	../birds/PRJNA394119/SAMN07349296
 SAMN07349332	Mgallisepticum	1	../birds/PRJNA394119/SAMN07349332
 SAMN07349334	Mgallisepticum	1	../birds/PRJNA394119/SAMN07349334
