@@ -3,6 +3,7 @@ setwd("~/Dropbox/BirdImmuneGeneEvolution/")
 library(tidyverse)
 library(RColorBrewer)
 library(cowplot)
+library(clusterProfiler)
 
 #Load dataset with NCBI annotations
 load("02_output_annotated_data/all_res_zf_hs.Rdat")
@@ -70,7 +71,8 @@ mammal_clean <- all_res_sp_zf_hs %>%
 
 #Combine bird and mammal datasets, only keep BUSTED results to ensure direct comparisons with mammals.
 birds<-all_res_sp_zf_hs %>%
-  dplyr::select(entrezgene,entrezgene_hs,ensembl_gene_id_hs,hog,pval_busted:FDRPval_busted,bip,vip,pip)
+  mutate(sig_all = if_else(FDRPval_m1m2 < 0.05 & FDRPval_m2m2a < 0.05 & FDRPval_m7m8 < 0.05 & FDRPval_m8m8a < 0.05 & FDRPval_busted < 0.05, TRUE,FALSE)) %>%
+  dplyr::select(entrezgene,entrezgene_hs,ensembl_gene_id_hs,hog,pval_busted:FDRPval_busted,sig_all,bip,vip,pip)
 
 imm<-full_join(mammal_clean, birds) %>%
   filter(!is.na(hog)) %>%
@@ -83,6 +85,7 @@ imm <-imm %>%
   mutate(mammal_logp = -1 * log10(bustedp+2.22e-16), bird_logp = -1 * log10(pval_busted+2.22e-16)) %>%
   mutate(mammal_q = p.adjust(bustedp, method="BH"), bird_q = p.adjust(pval_busted, method="BH"))
 
+write_csv(imm,path = "05_output_bird_mammal_comparison_results/bird_mammal_combined_dataset.csv")
 
 #############################################################################
 ###Use combined dataset to make inferences about similarity in selection###
@@ -318,8 +321,283 @@ ggsave(filename = "05_output_bird_mammal_comparison_results/mammal_bird_prop_sel
 
 
 
+#Logistic regression for mammal sig genes given bird sig genes, vip (etc), and the interaction between them
+
+#q values to consider
+qvals <- c(0.1,0.01,0.001,0.0001)
+
+#List to capture results across q values
+qval_res_int_list <- list()
+
+to_test <- c("vip","bip","pip")
+
+for (i in 1:length(qvals)){
+  
+  comp_propsig_int <- matrix(nrow=(length(to_test)*3),ncol=7)
+  comp_propsig_int[,1] <- rep(to_test,each=3)
+  
+  start = 1
+  
+  for (j in 1:length(to_test)){
+    #Create a vector of true and false for that evidence type for each hog, and remove duplicates
+    imm_test <- imm %>%
+      distinct(hog,.keep_all=TRUE) %>%
+      mutate(mammal_sig = if_else(mammal_q<qvals[i],1,0),
+             bird_sig = if_else(bird_q<qvals[i],1,0))
+    
+    int_form <- as.formula(paste0("mammal_sig ~ bird_sig*",to_test[j]))
+    
+    gl_res <- glm(int_form, family="binomial",data=imm_test)
+    
+    comp_propsig_int[start:(start+2),2] <- rownames(summary(gl_res)$coefficient[2:4,])
+    
+    comp_propsig_int[start:(start+2),3:6] <- summary(gl_res)$coefficient[2:4,]
+    
+    start = start+3
+  }
+  comp_propsig_int[,7] <- qvals[i]
+  
+  colnames(comp_propsig_int) <- c("class","parameter","estimate","std.error","z.value","p.value","qval")
+  
+  #Clean up, select relevant columns
+  comp_propsig_int_clean <- comp_propsig_int %>%
+    as.tibble %>%
+    mutate(p.value=round(as.numeric(p.value),digits = 4),
+           estimate=round(as.double(estimate),digits=2),
+           std.error=round(as.numeric(std.error),digits=2),
+           z.value=round(as.numeric(z.value),digits=2)) %>%
+    dplyr::select(qval,class,parameter,estimate,std.error,z.value,p.value)
+  
+  qval_res_int_list[[i]] <- comp_propsig_int_clean
+}
+
+qval_res_int <- qval_res_int_list %>% bind_rows
+
+write_csv(qval_res_int,path="05_output_bird_mammal_comparison_results/bird_mammals_comparison_logregression_table.csv")
 
 
+#Produce plots for visualizing proportions of different classes
+sig_birds_list <- list()
+sig_mammals_list <- list()
+
+for (i in 1:length(qvals)){
+  
+  #Add a column for sig genes birds, and sig genes mammals
+  imm <- imm %>%
+    mutate(sig_birds_mammals =  case_when(
+      bird_q<=qval & mammal_q>qvals[i] ~ "birds_only",
+      bird_q>qval & mammal_q<=qvals[i] ~ "mammals_only",
+      bird_q<=qval & mammal_q<=qvals[i] ~ "birds_and_mammals",
+      bird_q>qval & mammal_q>qvals[i] ~ "neither"),
+      sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+      sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
+  
+  #Playing around with some plotting
+  sig_birds_list[[i]] <- imm %>%
+    ggplot(aes(vip,fill=sig_birds)) +
+    geom_bar(position="fill") +
+    facet_grid(~sig_mammals) +
+    ggtitle(qvals[i])
+  
+  sig_mammals_list[[i]] <- imm %>%
+    ggplot(aes(bip,fill=sig_mammals)) +
+    geom_bar(position="fill") +
+    facet_grid(~sig_birds)+
+    ggtitle(qvals[i])
+}
+
+plot_grid(sig_birds_list[[1]],sig_birds_list[[2]],sig_birds_list[[3]],sig_birds_list[[4]],nrow=2,ncol=2)
+ggsave(filename = "05_output_bird_mammal_comparison_results/Birds_sig_mammals_vips.png",height=6,width=12)
+ggsave(filename = "05_output_bird_mammal_comparison_results/Birds_sig_mammals_pips.png",height=6,width=12)
+ggsave(filename = "05_output_bird_mammal_comparison_results/Birds_sig_mammals_bips.png",height=6,width=12)
+plot_grid(sig_mammals_list[[1]],sig_mammals_list[[2]],sig_mammals_list[[3]],sig_mammals_list[[4]],nrow=2,ncol=2)
+ggsave(filename = "05_output_bird_mammal_comparison_results/Mammals_sig_birds_vips.png",height=6,width=12)
+ggsave(filename = "05_output_bird_mammal_comparison_results/Mammals_sig_birds_pips.png",height=6,width=12)
+ggsave(filename = "05_output_bird_mammal_comparison_results/Mammals_sig_birds_bips.png",height=6,width=12)
+
+
+
+imm %>%
+  summarize(n_vips = )
+#Creat stacked bar plots
+
+pips_colors <- c("white",rgb(27,158,119,100,maxColorValue = 225),rgb(27,158,119,225,maxColorValue = 225))
+names(pips_colors) <- c("not significant","mammals","mammals and birds")
+
+vips_colors <- c("white",rgb(117,112,179,100,maxColorValue = 225),rgb(117,112,179,225,maxColorValue = 225))
+names(vips_colors) <- c("not significant","mammals","mammals and birds")
+
+bips_colors <- c("white",rgb(217,95,2,100,maxColorValue = 225),rgb(217,95,2,225,maxColorValue = 225))
+names(bips_colors) <- c("not significant","mammals","mammals and birds")
+
+legend_colors <- c(rgb(102,102,102,225,maxColorValue = 225),rgb(102,102,102,100,maxColorValue = 225))
+names(legend_colors) <- c("mammals and birds","mammals")
+
+imm <- imm %>%
+  mutate(sig_birds_mammals =  case_when(
+    bird_q<=qval & mammal_q>qvals[i] ~ "not significant",
+    bird_q>qval & mammal_q<=qvals[i] ~ "mammals",
+    bird_q<=qval & mammal_q<=qvals[i] ~ "mammals and birds",
+    bird_q>qval & mammal_q>qvals[i] ~ "not significant"),
+    sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+    sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
+
+mammals_pip <- imm %>%
+  ggplot(aes(pip,fill=factor(sig_birds_mammals,levels=c("not significant","mammals and birds","mammals")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = pips_colors,name="significant",guide=FALSE) +
+  ylab("proportion")
+mammals_bip <- imm %>%
+  ggplot(aes(bip,fill=factor(sig_birds_mammals,levels=c("not significant","mammals and birds","mammals")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = bips_colors,name="significant",guide=FALSE) +
+  ylab("proportion")
+mammals_vip <- imm %>%
+  ggplot(aes(vip,fill=factor(sig_birds_mammals,levels=c("not significant","mammals and birds","mammals")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = vips_colors,name="significant",guide=FALSE) +
+  ylab("proportion") +
+  guides(fill="none")
+mammals_legend <- imm %>%
+  filter(sig_birds_mammals != "not significant") %>%
+  ggplot(aes(vip,fill=factor(sig_birds_mammals,levels=c("mammals and birds","mammals")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = legend_colors,name="significant") +
+  ylab("proportion") +
+  ylim(1,2) +
+  guides(fill=guide_legend(override.aes = list(fill=legend_colors,order=2))) +
+  theme(line = element_blank(),
+        axis.text = element_blank(),
+        title = element_blank())
+
+plot_grid(mammals_vip,mammals_bip,mammals_pip,mammals_legend,nrow=1)
+
+
+#Create birds plots
+pips_colors <- c("white",rgb(27,158,119,100,maxColorValue = 225),rgb(27,158,119,225,maxColorValue = 225))
+names(pips_colors) <- c("not significant","birds","mammals and birds")
+
+vips_colors <- c("white",rgb(117,112,179,100,maxColorValue = 225),rgb(117,112,179,225,maxColorValue = 225))
+names(vips_colors) <- c("not significant","birds","mammals and birds")
+
+bips_colors <- c("white",rgb(217,95,2,100,maxColorValue = 225),rgb(217,95,2,225,maxColorValue = 225))
+names(bips_colors) <- c("not significant","birds","mammals and birds")
+
+legend_colors <- c(rgb(102,102,102,225,maxColorValue = 225),rgb(102,102,102,100,maxColorValue = 225))
+names(legend_colors) <- c("mammals and birds","birds")
+
+imm <- imm %>%
+  mutate(sig_birds_mammals =  case_when(
+    bird_q<=qval & mammal_q>qvals[i] ~ "birds",
+    bird_q>qval & mammal_q<=qvals[i] ~ "not significant",
+    bird_q<=qval & mammal_q<=qvals[i] ~ "mammals and birds",
+    bird_q>qval & mammal_q>qvals[i] ~ "not significant"),
+    sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+    sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
+
+birds_pip <- imm %>%
+  ggplot(aes(pip,fill=factor(sig_birds_mammals,levels=c("not significant","mammals and birds","birds")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = pips_colors,name="significant",guide=FALSE) +
+  ylab("proportion")
+birds_bip <- imm %>%
+  ggplot(aes(bip,fill=factor(sig_birds_mammals,levels=c("not significant","mammals and birds","birds")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = bips_colors,name="significant",guide=FALSE) +
+  ylab("proportion")
+birds_vip <- imm %>%
+  ggplot(aes(vip,fill=factor(sig_birds_mammals,levels=c("not significant","mammals and birds","birds")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = vips_colors,name="significant",guide=FALSE) +
+  ylab("proportion") +
+  guides(fill="none")
+birds_legend <- imm %>%
+  filter(sig_birds_mammals != "not significant") %>%
+  ggplot(aes(vip,fill=factor(sig_birds_mammals,levels=c("mammals and birds","birds")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = legend_colors,name="significant") +
+  ylab("proportion") +
+  ylim(1,2) +
+  guides(fill=guide_legend(override.aes = list(fill=legend_colors,order=2))) +
+  theme(line = element_blank(),
+        axis.text = element_blank(),
+        title = element_blank())
+
+plot_grid(birds_vip,birds_bip,birds_pip,birds_legend,nrow=1)
+
+plot_grid(mammals_vip,mammals_bip,mammals_pip,mammals_legend,birds_vip,birds_bip,birds_pip,birds_legend,nrow=2)
+ggsave("05_output_bird_mammal_comparison_results/birds_mammals_vips_bips_pips_sig_proportions.pdf",height=10,width=16)
+
+
+
+
+
+imm <- imm %>%
+  mutate(sig_birds_mammals =  case_when(
+    bird_q<=qval & mammal_q>qvals[i] ~ "birds",
+    bird_q>qval & mammal_q<=qvals[i] ~ "not_sig",
+    bird_q<=qval & mammal_q<=qvals[i] ~ "birds_and_mammals",
+    bird_q>qval & mammal_q>qvals[i] ~ "not_sig"),
+    sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+    sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
+
+
+
+###Which genes are under selection in both lineages?
+#Looking at q = 0.01
+qvals <- c(0.1,0.01,0.001,0.0001)
+enrich_res <- list()
+for (i in 1:length(qvals)){
+imm <- imm %>%
+  mutate(sig_birds_mammals =  case_when(
+    bird_q<=qvals[i] & mammal_q>qvals[i] ~ "birds",
+    bird_q>qvals[i] & mammal_q<=qvals[i] ~ "mammals",
+    bird_q<=qvals[i] & mammal_q<=qvals[i] ~ "birds_and_mammals",
+    bird_q>qvals[i] & mammal_q>qvals[i] ~ "not_sig"),
+    sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+    sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
+
+sig_both_genes <- imm %>%
+  filter(sig_birds_mammals == "birds_and_mammals") %>%
+  pull(entrezgene) %>%
+  as.character
+
+sig_birds_genes <- imm %>%
+  filter(sig_birds) %>%
+  pull(entrezgene) %>%
+  as.character
+
+birds_mammals_k <- enrichKEGG(sig_both_genes,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=sig_birds_genes,keyType="ncbi-geneid")
+birds_mammals_df <- summary(birds_mammals_k)
+birds_mammals_df[,"qval"] <- qvals[i]
+enrich_res[[i]] <- as.tibble(birds_mammals_df)
+}
+
+enrich_res <- bind_rows(enrich_res)
+
+enrich_res <- enrich_res %>%
+  separate(GeneRatio,into=c("sig_genes_pathway","sig_genes"),remove = F) %>%
+  separate(BgRatio, into=c("bg_sig_genes_pathway","bg_sig_genes"),remove = F) %>%
+  mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_sig_genes_pathway)/as.numeric(bg_sig_genes)))
+
+sig_pathways <- enrich_res %>%
+  filter(qvalue< 0.2) %>%
+  distinct(Description) %>%
+  pull(Description)
+
+enrich_res %>%
+  filter(Description %in% sig_pathways) %>%
+  mutate(qvalue = round(qvalue,2)) %>%
+  ggplot(aes(log10(qval),enrichment,col=Description)) +
+  geom_line() +
+  geom_point(size = 3) +
+  ylab("fold enrichment") +
+  geom_text(aes(log10(qval),enrichment,label=qvalue),hjust=1.2,vjust=1.2,col="black",size=3)
+ggsave("05_output_bird_mammal_comparison_results/birds_mammals_enrichment_plot.pdf",width=7,height=4)
+
+enrich_res %>%
+  filter(Description %in% sig_pathways) %>%
+  dplyr::select(qval,Description,enrichment,qvalue,BgRatio,GeneRatio)
 
 ###Compare proportions of genes selected in both mammals and birds at different q-value cutoffs
 #Plot bird vs. mammal log pvals, color by sig category

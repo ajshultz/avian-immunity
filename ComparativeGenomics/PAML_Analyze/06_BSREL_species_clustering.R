@@ -218,8 +218,9 @@ sp_coord_anno <- sp_coord %>%
 
 sp_coord_anno %>%
   ggplot(aes(PC1,log(body_mass_mean_hbabm))) +
-  geom_point()
-
+  geom_point() +
+  ylab("log(body mass)")
+ggsave("06_output_cluster_by_species/PC1_log_BM_HABM.png")
 
 sp_coord_anno %>%
   ggplot(aes(PC1,log(body_mass_mean))) +
@@ -440,7 +441,7 @@ hog_phylo_spear_res <- hog_phylo_spear_res %>%
   as.tibble %>%
   mutate(pvalue = as.double(pvalue), rho = as.double(rho), statistic = as.double(statistic))
 
-save(bm_hog_res,hog_phylo_reg_res,file ="06_output_cluster_by_species/bodymass_sppvals_spearman_res.Rdat")
+save(bm_hog_res,hog_phylo_spear_res,file ="06_output_cluster_by_species/bodymass_sppvals_spearman_res.Rdat")
 
 hog_phylo_spear_res_anno <- hog_phylo_spear_res %>%
   left_join(all_res_gene_zf_hs) %>%

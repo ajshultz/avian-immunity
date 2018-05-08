@@ -121,7 +121,7 @@ imm %>%
 
 #Make vector of families with at least 10 genes in the dataset
 families_to_test <- imm %>%
-  filter(!is.na(family),mammal_q<0.1) %>%
+  filter(!is.na(family)) %>%
   distinct(hog,family) %>%
   group_by(family) %>%
   summarize(count=n()) %>%
@@ -132,17 +132,13 @@ families_to_test <- imm %>%
 trans_evidence_types <- imm %>%
   filter(!is.na(trans_evidence)) %>%
   distinct(trans_evidence) %>%
-  filter(trans_evidence != "only_mammals") %>%
   pull()
 
 #Make a vector of overall viral type
-types_to_test <-  imm %>%
-  filter(!is.na(type),mammal_q<0.1) %>%
-  distinct(hog,type) %>%
-  group_by(type) %>%
-  summarize(count=n()) %>%
-  filter(count>10) %>%
-  pull(type)
+viral_type <-  imm %>%
+  filter(!is.na(type)) %>%
+  distinct(type) %>%
+  pull()
 
 imm %>%
   filter(!is.na(type)) %>%
@@ -165,7 +161,7 @@ qval_res_trans_list <- list()
 
 for (i in 1:length(qvals)){
   
-  comp_propsig_trans <- matrix(nrow=(length(trans_evidence_types)+1),ncol=8)
+  comp_propsig_trans <- matrix(nrow=(length(trans_evidence_types)+1),ncol=18)
   comp_propsig_trans[,1] <- c(trans_evidence_types,"all_genes")
   
   for (j in 1:length(trans_evidence_types)){
@@ -174,38 +170,67 @@ for (i in 1:length(qvals)){
       filter(trans_evidence == trans_evidence_types[j]) %>%
       pull(hog)
     imm_test <- imm %>%
-      distinct(hog,.keep_all=TRUE) %>%
-      filter(mammal_q < qvals[i]) %>%
+      distinct(hog,.keep_all=TRUE)
       mutate(trans_type = if_else(hog %in% trans_evi_type_hogs,TRUE,FALSE))
     
     #Calculate fisher's exact test for prop selected in both birds and mammals, and get prop sig genes
     comp_propsig_trans[j,2:5] <- imm_test %>%
-      with(.,table(trans_type,bird_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4]
+      with(.,table(trans_type,mammal_q < qvals[i] & bird_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4]
     comp_propsig_trans[j,6] <- imm_test %>%
+      filter(trans_type == TRUE) %>%
+      with(.,prop.table(table(mammal_q < qvals[i] & bird_q < qvals[i]))) %>% .[2]
+    
+    #Calculate fisher's exact test for prop selected in mammals only, and get prop sig genes
+    comp_propsig_trans[j,7:10] <- imm_test %>%
+      with(.,table(trans_type,mammal_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4]
+    comp_propsig_trans[j,11] <- imm_test %>%
+      filter(trans_type == TRUE) %>%
+      with(.,prop.table(table(mammal_q < qvals[i]))) %>% .[2]
+    
+    #Calculate fisher's exact test for prop selected in birds only, and get prop sig genes
+    comp_propsig_trans[j,12:15] <- imm_test %>%
+      with(.,table(trans_type,bird_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4]
+    comp_propsig_trans[j,16] <- imm_test %>%
       filter(trans_type == TRUE) %>%
       with(.,prop.table(table(bird_q < qvals[i]))) %>% .[2]
     
     #Number of genes in each category:
-    comp_propsig_trans[j,7] <- imm_test %>% filter(trans_type == TRUE) %>% summarize(n()) %>% pull
+    comp_propsig_trans[j,17] <- imm_test %>% filter(trans_type == TRUE) %>% summarize(n()) %>% pull
     }
   
   #Add prop sig all genes
   comp_propsig_trans[j+1,6] <- imm_test %>%
+    with(.,prop.table(table(mammal_q < qvals[i] & bird_q < qvals[i]))) %>% .[2]
+  comp_propsig_trans[j+1,11] <- imm_test %>%
+    with(.,prop.table(table(mammal_q < qvals[i]))) %>% .[2]
+  comp_propsig_trans[j+1,16] <- imm_test %>%
     with(.,prop.table(table(bird_q < qvals[i]))) %>% .[2]
+  comp_propsig_trans[j+1,17] <- imm_test %>% summarize(n()) %>% pull
   
-  comp_propsig_trans[,8] <- qvals[i]
+  comp_propsig_trans[,18] <- qvals[i]
   
-  colnames(comp_propsig_trans) <- c("class","p.value","conf.int1","conf.int2","estimated.odds.ratio","prop_sel","n.genes","qval")
+  colnames(comp_propsig_trans) <- c("class","p.value_both","conf.int1_both","conf.int2_both","estimated.odds.ratio_both","prop_sel_both","p.value_mammals","conf.int1_mammals","conf.int2_mammals","estimated.odds.ratio_mammals","prop_sel_mammals","p.value_birds","conf.int1_birds","conf.int2_birds","estimated.odds.ratio_birds","prop_sel_birds","n.genes","qval")
   
   #Clean up, select relevant columns
   comp_propsig_trans_clean <- comp_propsig_trans %>%
     as.tibble %>%
-    mutate(p.value=round(as.numeric(p.value),digits = 4),
-          odds.ratio=round(as.double(estimated.odds.ratio),digits=2),
-          prop.sel=round(as.numeric(prop_sel),digits=3),
-          conf.lower=round(as.numeric(conf.int1),digits=3),
-          conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
-    dplyr::select(qval,class,n.genes,odds.ratio,conf.lower,conf.upper,p.value,prop.sel)
+    mutate(p.value_both=round(as.numeric(p.value_both),digits = 4),
+          odds.ratio_both=round(as.double(estimated.odds.ratio_both),digits=2),
+          prop.sel_both=round(as.numeric(prop_sel_both),digits=3),
+          conf.lower_both=round(as.numeric(conf.int1_both),digits=3),
+          conf.upper_both=round(as.numeric(conf.int2_both),digits=3),
+          p.value_mammals=round(as.numeric(p.value_mammals),digits = 4),
+          odds.ratio_mammals=round(as.numeric(estimated.odds.ratio_mammals),digits=2),
+          prop.sel_mammals=round(as.numeric(prop_sel_mammals),digits=3),
+          conf.lower_mammals=round(as.numeric(conf.int1_mammals),digits=3),
+          conf.upper_mammals=round(as.numeric(conf.int2_mammals),digits=3),
+          p.value_birds=round(as.numeric(p.value_birds),digits = 4),
+          odds.ratio_birds=round(as.numeric(estimated.odds.ratio_birds),digits=2),
+          prop.sel_birds=round(as.numeric(prop_sel_birds),digits=3),
+          conf.lower_birds=round(as.numeric(conf.int1_birds),digits=3),
+          conf.upper_birds=round(as.numeric(conf.int2_birds),digits=3)) %>%
+    dplyr::select(qval,class,n.genes,odds.ratio_both,conf.lower_both,conf.upper_both,p.value_both,prop.sel_both,odds.ratio_mammals,conf.lower_mammals,conf.upper_mammals,p.value_mammals,prop.sel_mammals,odds.ratio_birds,conf.lower_birds,conf.upper_birds,p.value_birds,prop.sel_birds)
+  
   
   qval_res_trans_list[[i]] <- comp_propsig_trans_clean
 }
@@ -215,19 +240,27 @@ qval_res_trans <- qval_res_trans_list %>% bind_rows
 write_csv(qval_res_trans,path="07_output_virus_classification/bird_mammals_evidence_type_enrichment_table.csv")
 
 
+#Reshape into long format for plotting
+qval_res_trans <- qval_res_trans %>%
+  gather(stat,value,-qval,-class,-n.genes) %>%
+  separate(stat,into = c("stat","comparison"),sep="_")
+
 #Create vector of asterisks to include in plots:
 qval_res_trans_forplotting <-   qval_res_trans %>%
+  #filter(class != "all_genes") %>%
+  filter(class != "only_mammals") %>%
+  spread(stat,value) %>%
   mutate(sig = case_when(
     is.na(p.value) ~ "",
-    p.value > 0.1 ~ "",
-    p.value <= 0.1 & p.value > 0.01 ~ "*",
+    p.value > 0.05 ~ "",
+    p.value <= 0.05 & p.value > 0.01 ~ "*",
     p.value <= 0.01 & p.value > 0.001 ~ "**",
     p.value <= 0.001 ~ "***"
   ))
 
 
 prop_sel_plot <- qval_res_trans_forplotting %>%
-  filter(class != "all_genes") %>%
+  #filter(class != "all_genes") %>%
   ggplot(aes(factor(qval,levels=c("0.1","0.01","0.001","1e-04")),prop.sel,fill=factor(class,levels=c("all_genes","monophyletic","deep_paraphyletic","shallow_paraphyletic")))) +
   geom_bar(stat = "identity",position=position_dodge()) +
   geom_text(aes(factor(qval,levels=c("0.1","0.01","0.001","1e-04")),label=sig),position=position_dodge(width=0.9),size=10) +
@@ -235,7 +268,8 @@ prop_sel_plot <- qval_res_trans_forplotting %>%
   scale_fill_discrete(name="class") +
   xlab("q-value") +
   ylab("proportion selected birds + mammals") +
-  labs(subtitle="* = p < 0.05, ** = p < 0.01, *** = p < 0.001")
+  labs(subtitle="* = p < 0.05, ** = p < 0.01, *** = p < 0.001") +
+  facet_grid(~factor(comparison,levels=c("mammals","birds","both")))
 
 odds_ratio_plot <- qval_res_trans_forplotting %>%
   filter(class != "all_genes") %>%
@@ -247,10 +281,11 @@ odds_ratio_plot <- qval_res_trans_forplotting %>%
   scale_color_discrete(name="class") +
   xlab("q-value") +
   ylab("odds ratio") +
-  scale_y_continuous(labels=function(label) sprintf('%6.0f', label))
+  scale_y_continuous(labels=function(label) sprintf('%6.0f', label)) +
+  facet_grid(~factor(comparison,levels=c("mammals","birds","both")))
 
 plot_grid(prop_sel_plot, odds_ratio_plot, ncol=1)
-ggsave(filename = "07_output_virus_classification/mammal_bird_evidence_type_comparison.pdf",width = 14, height=10)
+ggsave(filename = "07_output_virus_classification//mammal_bird_evidence_type_comparison.pdf",width = 14, height=10)
 
 
 #######################################################################################################################
@@ -265,7 +300,7 @@ qval_res_family_list <- list()
 
 for (i in 1:length(qvals)){
   
-  comp_propsig_family <- matrix(nrow=(length(families_to_test)+1),ncol=8)
+  comp_propsig_family <- matrix(nrow=(length(families_to_test)+1),ncol=18)
   comp_propsig_family[,1] <- c(families_to_test,"all_genes")
   
   for (j in 1:length(families_to_test)){
@@ -275,37 +310,66 @@ for (i in 1:length(qvals)){
       pull(hog)
     imm_test <- imm %>%
       distinct(hog,.keep_all=TRUE) %>%
-      filter(mammal_q < qvals[i]) %>%
       mutate(family_type = if_else(hog %in% family_hogs,TRUE,FALSE))
     
     #Calculate fisher's exact test for prop selected in both birds and mammals, and get prop sig genes
-    comp_propsig_family[j,2:5] <- try(imm_test %>%
-      with(.,table(family_type,bird_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4])
+    comp_propsig_family[j,2:5] <- imm_test %>%
+      with(.,table(family_type,mammal_q < qvals[i] & bird_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4]
     comp_propsig_family[j,6] <- imm_test %>%
+      filter(family_type == TRUE) %>%
+      with(.,prop.table(table(mammal_q < qvals[i] & bird_q < qvals[i]))) %>% .[2]
+    
+    #Calculate fisher's exact test for prop selected in mammals only, and get prop sig genes
+    comp_propsig_family[j,7:10] <- imm_test %>%
+      with(.,table(family_type,mammal_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4]
+    comp_propsig_family[j,11] <- imm_test %>%
+      filter(family_type == TRUE) %>%
+      with(.,prop.table(table(mammal_q < qvals[i]))) %>% .[2]
+    
+    #Calculate fisher's exact test for prop selected in birds only, and get prop sig genes
+    comp_propsig_family[j,12:15] <- imm_test %>%
+      with(.,table(family_type,bird_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4]
+    comp_propsig_family[j,16] <- imm_test %>%
       filter(family_type == TRUE) %>%
       with(.,prop.table(table(bird_q < qvals[i]))) %>% .[2]
     
     #Number of genes in each category:
-    comp_propsig_family[j,7] <- imm_test %>% filter(family_type == TRUE) %>% summarize(n()) %>% pull
+    comp_propsig_family[j,17] <- imm_test %>% filter(family_type == TRUE) %>% summarize(n()) %>% pull
   }
   
   #Add prop sig all genes
   comp_propsig_family[j+1,6] <- imm_test %>%
+    with(.,prop.table(table(mammal_q < qvals[i] & bird_q < qvals[i]))) %>% .[2]
+  comp_propsig_family[j+1,11] <- imm_test %>%
+    with(.,prop.table(table(mammal_q < qvals[i]))) %>% .[2]
+  comp_propsig_family[j+1,16] <- imm_test %>%
     with(.,prop.table(table(bird_q < qvals[i]))) %>% .[2]
+  comp_propsig_family[j+1,17] <- imm_test %>% summarize(n()) %>% pull
   
-  comp_propsig_family[,8] <- qvals[i]
+  comp_propsig_family[,18] <- qvals[i]
   
-  colnames(comp_propsig_family) <- c("class","p.value","conf.int1","conf.int2","estimated.odds.ratio","prop_sel","n.genes","qval")
+  colnames(comp_propsig_family) <- c("class","p.value_both","conf.int1_both","conf.int2_both","estimated.odds.ratio_both","prop_sel_both","p.value_mammals","conf.int1_mammals","conf.int2_mammals","estimated.odds.ratio_mammals","prop_sel_mammals","p.value_birds","conf.int1_birds","conf.int2_birds","estimated.odds.ratio_birds","prop_sel_birds","n.genes","qval")
   
   #Clean up, select relevant columns
   comp_propsig_family_clean <- comp_propsig_family %>%
     as.tibble %>%
-    mutate(p.value=round(as.numeric(p.value),digits = 4),
-           odds.ratio=round(as.double(estimated.odds.ratio),digits=2),
-           prop.sel=round(as.numeric(prop_sel),digits=3),
-           conf.lower=round(as.numeric(conf.int1),digits=3),
-           conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
-    dplyr::select(qval,class,n.genes,odds.ratio,conf.lower,conf.upper,p.value,prop.sel)
+    mutate(p.value_both=round(as.numeric(p.value_both),digits = 4),
+           odds.ratio_both=round(as.double(estimated.odds.ratio_both),digits=2),
+           prop.sel_both=round(as.numeric(prop_sel_both),digits=3),
+           conf.lower_both=round(as.numeric(conf.int1_both),digits=3),
+           conf.upper_both=round(as.numeric(conf.int2_both),digits=3),
+           p.value_mammals=round(as.numeric(p.value_mammals),digits = 4),
+           odds.ratio_mammals=round(as.numeric(estimated.odds.ratio_mammals),digits=2),
+           prop.sel_mammals=round(as.numeric(prop_sel_mammals),digits=3),
+           conf.lower_mammals=round(as.numeric(conf.int1_mammals),digits=3),
+           conf.upper_mammals=round(as.numeric(conf.int2_mammals),digits=3),
+           p.value_birds=round(as.numeric(p.value_birds),digits = 4),
+           odds.ratio_birds=round(as.numeric(estimated.odds.ratio_birds),digits=2),
+           prop.sel_birds=round(as.numeric(prop_sel_birds),digits=3),
+           conf.lower_birds=round(as.numeric(conf.int1_birds),digits=3),
+           conf.upper_birds=round(as.numeric(conf.int2_birds),digits=3)) %>%
+    dplyr::select(qval,class,n.genes,odds.ratio_both,conf.lower_both,conf.upper_both,p.value_both,prop.sel_both,odds.ratio_mammals,conf.lower_mammals,conf.upper_mammals,p.value_mammals,prop.sel_mammals,odds.ratio_birds,conf.lower_birds,conf.upper_birds,p.value_birds,prop.sel_birds)
+  
   
   qval_res_family_list[[i]] <- comp_propsig_family_clean
 }
@@ -389,198 +453,6 @@ odds_ratio_plot <- qval_res_family_forplotting %>%
 
 plot_grid(prop_sel_plot, odds_ratio_plot, ncol=1)
 ggsave(filename = "07_output_virus_classification/mammal_bird_family_comparison_joint_results_only.pdf",width = 10, height=10)
-
-
-
-
-
-
-
-#q values to consider
-qvals <- c(0.1,0.01,0.001,0.0001)
-
-#List to capture results across q values
-qval_res_type_list <- list()
-
-for (i in 1:length(qvals)){
-  
-  comp_propsig_type <- matrix(nrow=(length(types_to_test)+1),ncol=8)
-  comp_propsig_type[,1] <- c(types_to_test,"all_genes")
-  
-  for (j in 1:length(types_to_test)){
-    #Create a vector of true and false for that evidence type for each hog, and remove duplicates
-    type_hogs = imm %>%
-      filter(type == types_to_test[j]) %>%
-      pull(hog)
-    imm_test <- imm %>%
-      distinct(hog,.keep_all=TRUE) %>%
-      filter(mammal_q < qvals[i]) %>%
-      mutate(type_type = if_else(hog %in% type_hogs,TRUE,FALSE))
-    
-    #Calculate fisher's exact test for prop selected in both birds and mammals, and get prop sig genes
-    comp_propsig_type[j,2:5] <- try(imm_test %>%
-                                      with(.,table(type_type,bird_q < qvals[i])) %>% fisher.test %>% unlist %>% .[1:4])
-    comp_propsig_type[j,6] <- imm_test %>%
-      filter(type_type == TRUE) %>%
-      with(.,prop.table(table(bird_q < qvals[i]))) %>% .[2]
-    
-    #Number of genes in each category:
-    comp_propsig_type[j,7] <- imm_test %>% filter(type_type == TRUE) %>% summarize(n()) %>% pull
-  }
-  
-  #Add prop sig all genes
-  comp_propsig_type[j+1,6] <- imm_test %>%
-    with(.,prop.table(table(bird_q < qvals[i]))) %>% .[2]
-  
-  comp_propsig_type[,8] <- qvals[i]
-  
-  colnames(comp_propsig_type) <- c("class","p.value","conf.int1","conf.int2","estimated.odds.ratio","prop_sel","n.genes","qval")
-  
-  #Clean up, select relevant columns
-  comp_propsig_type_clean <- comp_propsig_type %>%
-    as.tibble %>%
-    mutate(p.value=round(as.numeric(p.value),digits = 4),
-           odds.ratio=round(as.double(estimated.odds.ratio),digits=2),
-           prop.sel=round(as.numeric(prop_sel),digits=3),
-           conf.lower=round(as.numeric(conf.int1),digits=3),
-           conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
-    dplyr::select(qval,class,n.genes,odds.ratio,conf.lower,conf.upper,p.value,prop.sel)
-  
-  qval_res_type_list[[i]] <- comp_propsig_type_clean
-}
-
-qval_res_type <- qval_res_type_list %>% bind_rows
-
-write_csv(qval_res_type,path="07_output_virus_classification/bird_mammals_viral_type_enrichment_table.csv")
-
-
-
-
-
-
-
-##Logistic regression for transmission evidence classification
-
-
-#q values to consider
-qvals <- c(0.1,0.01,0.001,0.0001)
-
-#List to capture results across q values
-qval_res_trans_list <- list()
-
-for (i in 1:length(qvals)){
-  
-  comp_propsig_trans <- matrix(nrow=(length(trans_evidence_types)*3),ncol=7)
-  comp_propsig_trans[,1] <- rep(trans_evidence_types,each=3)
-  
-  start = 1
-  
-  for (j in 1:length(trans_evidence_types)){
-    #Create a vector of true and false for that evidence type for each hog, and remove duplicates
-    trans_evi_type_hogs = imm %>%
-      filter(trans_evidence == trans_evidence_types[j]) %>%
-      pull(hog)
-    imm_test <- imm %>%
-      distinct(hog,.keep_all=TRUE) %>%
-      mutate(trans_type = if_else(hog %in% trans_evi_type_hogs,TRUE,FALSE),
-             mammal_sig = if_else(mammal_q<qvals[i],1,0),
-             bird_sig = if_else(bird_q<qvals[i],1,0))
-    
-    gl_res <- glm(mammal_sig ~ bird_sig*trans_type, family="binomial",data=imm_test)
-    
-    comp_propsig_trans[start:(start+2),2] <- rownames(summary(gl_res)$coefficient[2:4,])
-    
-    comp_propsig_trans[start:(start+2),3:6] <- summary(gl_res)$coefficient[2:4,]
-    
-    start = start+3
-  }
-  comp_propsig_trans[,7] <- qvals[i]
-  
-  colnames(comp_propsig_trans) <- c("class","parameter","estimate","std.error","z.value","p.value","qval")
-  
-  #Clean up, select relevant columns
-  comp_propsig_trans_clean <- comp_propsig_trans %>%
-    as.tibble %>%
-    mutate(p.value=round(as.numeric(p.value),digits = 4),
-           estimate=round(as.double(estimate),digits=2),
-           std.error=round(as.numeric(std.error),digits=2),
-           z.value=round(as.numeric(z.value),digits=2)) %>%
-    dplyr::select(qval,class,parameter,estimate,std.error,z.value,p.value)
-  
-  qval_res_trans_list[[i]] <- comp_propsig_trans_clean
-}
-
-qval_res_trans <- qval_res_trans_list %>% bind_rows
-
-write_csv(qval_res_trans,path="07_output_virus_classification/bird_mammals_viral_trans_evidence_enrichment_table.csv")
-
-
-##Logistic regression for transmission evidence classification
-
-
-#q values to consider
-qvals <- c(0.1,0.01,0.001,0.0001)
-
-#List to capture results across q values
-qval_res_family_list <- list()
-
-for (i in 1:length(qvals)){
-  
-  comp_propsig_family <- matrix(nrow=(length(families_to_test)*3),ncol=7)
-  comp_propsig_family[,1] <- rep(families_to_test,each=3)
-  
-  start = 1
-  
-  for (j in 1:length(families_to_test)){
-    #Create a vector of true and false for that evidence type for each hog, and remove duplicates
-    family_hogs = imm %>%
-      filter(family == families_to_test[j]) %>%
-      pull(hog)
-    imm_test <- imm %>%
-      distinct(hog,.keep_all=TRUE) %>%
-      mutate(family_type = if_else(hog %in% family_hogs,TRUE,FALSE),
-             mammal_sig = if_else(mammal_q<qvals[i],1,0),
-             bird_sig = if_else(bird_q<qvals[i],1,0))
-    
-    gl_res <- glm(mammal_sig ~ bird_sig*family_type, family="binomial",data=imm_test)
-    
-    comp_propsig_family[start:(start+2),2] <- rownames(summary(gl_res)$coefficient[2:4,])
-    
-    comp_propsig_family[start:(start+2),3:6] <- summary(gl_res)$coefficient[2:4,]
-    
-    start = start+3
-  }
-  comp_propsig_family[,7] <- qvals[i]
-  
-  colnames(comp_propsig_family) <- c("class","parameter","estimate","std.error","z.value","p.value","qval")
-  
-  #Clean up, select relevant columns
-  comp_propsig_family_clean <- comp_propsig_family %>%
-    as.tibble %>%
-    mutate(p.value=round(as.numeric(p.value),digits = 4),
-           estimate=round(as.double(estimate),digits=2),
-           std.error=round(as.numeric(std.error),digits=2),
-           z.value=round(as.numeric(z.value),digits=2)) %>%
-    dplyr::select(qval,class,parameter,estimate,std.error,z.value,p.value)
-  
-  qval_res_family_list[[i]] <- comp_propsig_family_clean
-}
-
-qval_res_family <- qval_res_family_list %>% bind_rows
-
-write_csv(qval_res_family,path="07_output_virus_classification/bird_mammals_viral_family_enrichment_table.csv")
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
