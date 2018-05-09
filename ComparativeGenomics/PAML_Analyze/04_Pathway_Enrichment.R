@@ -42,9 +42,11 @@ all_sig_sp <- all_res_sp_ncbi %>%
 
 #Chicken pathway enrichemnt tests:
 #Gene trees, p<0.05, q<0.05
-all_genes_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_gene,keyType="ncbi-geneid")
+all_genes_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_gene,keyType="ncbi-geneid")
 
-write_csv(summary(all_genes_k), path="04_output_pathway_results/chicken_genetree_pathwayres_p0.05_q0.05.csv")
+write_csv(summary(all_genes_k), path="04_output_pathway_results/chicken_genetree_pathwayres_p1_q0.1.csv")
+
+summary(all_genes_k)
 
 #Gene trees, all results, no cutoff
 all_genes_nocutoff_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
@@ -57,9 +59,9 @@ all_genes_tested_nocutoff_k <- enrichKEGG(all_tested_gene,organism="gga",pvalueC
 write_csv(summary(all_genes_tested_nocutoff_k), path="04_output_pathway_results/chicken_genetree_allgenestested_pathwayres_nocutoffs.csv")
 
 #Species trees, p<0.05, q<0.05
-all_sp_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp,keyType="ncbi-geneid")
+all_sp_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_sp,keyType="ncbi-geneid")
 
-write_csv(summary(all_sp_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_p0.05_q0.05.csv")
+write_csv(summary(all_sp_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_p1_q0.1.csv")
 
 #Species trees, all results, no cutoff
 
@@ -68,9 +70,12 @@ all_sp_nocutoff_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=1,pAdjust
 write_csv(summary(all_sp_nocutoff_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_nocutoffs.csv")
 
 #Plots *Will finalize when we decide what is going in the paper
-#dotplot(all_genes_k)
-#enrichMap(all_genes_k)
-#cnetplot(all_genes_k,categorySize="pvalue",showCategory=10,fixed=TRUE)
+dotplot(all_genes_k,showCategory=30)
+ggsave("04_output_pathway_results/chicken_genetree_qval0.1_dotplot.pdf",width=7,height=6)
+
+pdf("04_output_pathway_results/chicken_genetree_qval0.1_cnetplot.pdf",width=8,height=8)
+cnetplot(all_genes_k,categorySize="pvalue",showCategory=30,fixed=TRUE)
+dev.off()
 
 #dotplot(all_sp_k)
 #enrichMap(all_sp_k)

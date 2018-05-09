@@ -314,7 +314,7 @@ save(all_res_birds_clean,file = "08_output_transcriptomics/birds_clean_transcrip
 
 
 #What are the bioprojects by infections?
-all_res_birds_clean %>%
+bioproj_infect_info <- all_res_birds_clean %>%
   distinct(bioproj_number,.keep_all=T) %>%
   dplyr::select(bioproj_number,infect_type_specific,infect_type_virus_type,infect_type_general)
 
@@ -332,44 +332,136 @@ sig_res_simple <- all_res_gene_zf_hs %>%
   dplyr::select(ensembl_id_gg,prop_sel.n,external_gene_name,sig_all_tests)
 
 #Combine those significance results with transcriptome results
-influenza_res <- all_res_birds_clean %>%
-  filter(infect_type_virus_type=="paramyxovirus") %>%
-  group_by(ensembl_id_gg) %>%
-  summarize(beta_sig_overall = sum(beta_sig), sig_overall = sum(sig)) %>%
-  mutate(beta_sig = case_when(#beta_sig_overall >= 2 ~ 1,
-                              beta_sig_overall == 1 ~ 1,
-                              beta_sig_overall == 0 ~ 0,
-                              beta_sig_overall == -1 ~ 1),
-                              #beta_sig_overall <= 2 ~ -1),
-         sig = case_when(sig_overall >= 1 ~ 1,
-                         sig_overall == 0 ~ 0,
-                         sig_overall <= -1 ~ -1)) %>%
-  #dplyr::select(-beta_sig,-sig) %>%
-  filter(ensembl_id_gg != "") %>%
-  left_join(sig_res_simple,by=c("ensembl_id_gg")) %>%
-  filter(!is.na(sig_all_tests)) %>%
-  mutate(expr_sig = if_else(beta_sig !=0,1,0), up_reg = if_else(beta_sig==1,1,0), down_reg = if_else(beta_sig==-1,1,0)) 
 
-influenza_res %>%
-  with(.,table(beta_sig))
-influenza_res %>%
-  with(.,table(beta_sig,sig_all_tests))
+infect_agents <- all_res_birds_clean %>%
+  distinct(infect_type_virus_type) %>%
+  pull
 
-influenza_res_sig_test <- influenza_res %>%
-  glm(sig_all_tests ~ expr_sig, family="binomial",data=.)
-summary(influenza_res_sig_test)
-influenza_res_upreg_test <- influenza_res %>%
-  glm(sig_all_tests ~ up_reg, family="binomial",data=.)
-summary(influenza_res_upreg_test)
-influenza_res_downreg_test <- influenza_res %>%
-  glm(sig_all_tests ~ down_reg, family="binomial",data=.)
-summary(influenza_res_downreg_test)
+#Colors to use:
+general_colors_plasmodium <- c("white",rgb(27,158,119,225,maxColorValue = 225))
+names(general_colors_plasmodium) <- c("not significant","significant")
+
+general_colors_virus <- c("white",rgb(117,112,179,225,maxColorValue = 225))
+names(general_colors_virus) <- c("not significant","significant")
+
+general_colors_bacterium<- c("white",rgb(217,95,2,225,maxColorValue = 225))
+names(general_colors_bacterium) <- c("not significant","significant")
+
+color_list <- list(general_colors_plasmodium,general_colors_virus,general_colors_bacterium)
+names(color_list) <- c("plasmodium","virus","bacterium")
+
+color_vec <- as.tibble(color_list)[2,] %>% gather(agent,color) %>% pull(color)
+names(color_vec) <- as.tibble(color_list)[2,] %>% gather(agent,color) %>% pull(agent)
+
+
+
+infect_res_table <- matrix(nrow=length(infect_agents)*3,ncol=8)
+colnames(infect_res_table) <- c("infect_agent", "trans_response", "n", "estimate","std.error","z.value","p.value", "prop_sig")
+
+infect_plots <- list()
+
+start <- 1
+
+for (i in 1:length(infect_agents)){
+  infect_res_table[(start:(start+2)),1] <- infect_agents[i]
+  infect_res <- all_res_birds_clean %>%
+    filter(infect_type_virus_type==infect_agents[i]) %>%
+    group_by(ensembl_id_gg) %>%
+    summarize(beta_sig_overall = sum(beta_sig), sig_overall = sum(sig)) %>%
+    mutate(beta_sig = case_when(beta_sig_overall >= 1 ~ 1,
+                                beta_sig_overall == 0 ~ 0,
+                                beta_sig_overall <= -1 ~ -1),
+           sig = case_when(sig_overall >= 1 ~ 1,
+                           sig_overall == 0 ~ 0,
+                           sig_overall <= -1 ~ -1)) %>%
+    filter(ensembl_id_gg != "", !is.na(beta_sig)) %>%
+    left_join(sig_res_simple,by=c("ensembl_id_gg")) %>%
+    filter(!is.na(sig_all_tests)) %>%
+    mutate(expr_sig = if_else(beta_sig !=0,1,0), up_reg = if_else(beta_sig==1,1,0), down_reg = if_else(beta_sig==-1,1,0), not_reg = if_else(beta_sig == 0,1,0))
   
+  infect_res_table[start,2] <- "down"   
+  try(infect_res_downreg_test <- infect_res %>%
+    filter(beta_sig != 1) %>%
+    glm(sig_all_tests ~ down_reg, family="binomial",data=.))
+  try(infect_res_table[start,4:7] <- summary(infect_res_downreg_test)$coefficient[2,])
+  
+  infect_res_table[start+1,2] <- "none" 
+  infect_res_table[start+1,4:7] <- NA
 
+  infect_res_table[start+2,2] <- "up"   
+  try(infect_res_upreg_test <- infect_res %>%
+    filter(beta_sig != -1) %>%
+    glm(sig_all_tests ~ up_reg, family="binomial",data=.))
+  try(infect_res_table[start+2,4:7] <- summary(infect_res_upreg_test)$coefficient[2,])
+  
+  #infect_res %>%
+  #  filter(up_reg ==1, sig_all_tests ==1) %>%
+  #  print(n=30)
+  
+  general_type <- bioproj_infect_info %>%
+    filter(infect_type_virus_type == infect_agents[i]) %>%
+    distinct(infect_type_general) %>%
+    pull
+  
+  #Calculate proportion significant
+  infect_res_table[start:(start+2),8] <- infect_res %>%
+    with(.,table(sig_all_tests,beta_sig)) %>%
+    as.tibble %>%
+    mutate(beta_sig = case_when(beta_sig == -1 ~ "down",
+                                beta_sig == 0 ~ "none",
+                                beta_sig == 1 ~ "up")) %>%
+    group_by(beta_sig) %>%
+    mutate(n_cat = sum(n)) %>%
+    spread(sig_all_tests,n) %>%
+    mutate(proportion = `1`/n_cat) %>%
+    pull(proportion)
+  
+  #Pull the number of genes in each transcriptional category
+  infect_res_table[start:(start+2),3] <- infect_res %>%
+    with(.,table(beta_sig)) %>%
+    as.tibble %>%
+    mutate(beta_sig = case_when(beta_sig == -1 ~ "down",
+                                beta_sig == 0 ~ "none",
+                                beta_sig == 1 ~ "up")) %>%
+    pull(n)
+  
+  
+  
+  infect_plots[[i]] <-  infect_res_table[start:(start+2),] %>%
+    as.tibble %>%
+    mutate_at(.vars = 3:8, .fun = as.numeric) %>%
+    mutate(sig_char = case_when(p.value <= 0.0001 ~ "***",
+                                p.value > 0.0001 & p.value <= 0.001 ~ "**",
+                                p.value > 0.001 & p.value <= 0.05 ~ "*",
+                                p.value > 0.05 ~ "")) %>%
+    ggplot(aes(trans_response,prop_sig)) +
+    geom_bar(stat="identity",fill=color_vec[general_type]) +
+    ggtitle(infect_agents[i]) +
+    ylab("proportion significant") +
+    xlab("transcriptional response") +
+    ylim(0,1) +
+    geom_text(aes(trans_response,label=n),nudge_y=0.08,size=4) +
+    geom_text(aes(trans_response,label=sig_char),nudge_y=0.01,size=4)
 
-influenza_res %>%
-  filter(up_reg ==1, sig_all_tests ==1) %>%
-  print(n=30)
+  start <- start + 3 
+  }
+
+names(infect_plots) <- infect_agents
+
+birds_legend <- all_res_birds_clean %>%
+  ggplot(aes(infect_type_general,fill=factor(infect_type_general,levels=c("plasmodium","virus","bacterium")))) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = color_vec,name="pathogen type") +
+  ylab("proportion") +
+  ylim(1,2) +
+  guides(fill=guide_legend(override.aes = list(fill=color_vec))) +
+  theme(line = element_blank(),
+        axis.text = element_blank(),
+        title = element_blank())
+
+plot_grid(infect_plots[["birnaviridae"]],infect_plots[["influenza"]],infect_plots[["paramyxovirus"]],infect_plots[["west_nile_virus"]],infect_plots[["ecoli"]],infect_plots[["mycoplasma"]],infect_plots[["plasmodium"]],birds_legend,ncol=4)
+ggsave("08_output_transcriptomics/bird_transcriptome_sig_figure.pdf",height=7,width=11)
+
 
 
 

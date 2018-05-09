@@ -532,6 +532,12 @@ ggsave("05_output_bird_mammal_comparison_results/birds_mammals_vips_bips_pips_si
 
 
 
+
+
+#Read back in imm if running later
+imm <- read_csv("05_output_bird_mammal_comparison_results/bird_mammal_combined_dataset.csv")
+
+
 imm <- imm %>%
   mutate(sig_birds_mammals =  case_when(
     bird_q<=qval & mammal_q>qvals[i] ~ "birds",
@@ -580,24 +586,46 @@ enrich_res <- enrich_res %>%
   separate(BgRatio, into=c("bg_sig_genes_pathway","bg_sig_genes"),remove = F) %>%
   mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_sig_genes_pathway)/as.numeric(bg_sig_genes)))
 
-sig_pathways <- enrich_res %>%
-  filter(qvalue< 0.2) %>%
-  distinct(Description) %>%
+enrich_res %>%
+  write_csv("05_output_bird_mammal_comparison_results/bird_mammal_pathway_enrichment.csv")
+
+#Read in previous bird results:
+bird_sig_pathways <- read_csv("04_output_pathway_results/chicken_genetree_pathwayres_p1_q0.1.csv")
+
+#Get sig bird pathways in bird mammal enrichment results
+sig_pathways <- bird_sig_pathways %>%
+  semi_join(enrich_res,by="Description") %>%
   pull(Description)
 
+#Choose 10 pathways with the same nubmer of background sig genes, but not in these 10
+not_sig_pathways <- c("Ubiquitin mediated proteolysis","Spliceosome","Focal adhesion","NOD-like receptor signaling pathway","Protein processing in endoplasmic reticulum","Regulation of actin cytoskeleton","Vascular smooth muscle contraction","Ribosome biogenesis in eukaryotes","Purine metabolism","Pyrimidine metabolism")
+
+pathway_colors <- c(brewer.pal(name = "Paired",n=10),rep("grey",10))
+names(pathway_colors) <- c(sig_pathways,not_sig_pathways)
+
+
 enrich_res %>%
-  filter(Description %in% sig_pathways) %>%
+  filter(Description %in% sig_pathways | Description %in% not_sig_pathways) %>%
   mutate(qvalue = round(qvalue,2)) %>%
-  ggplot(aes(log10(qval),enrichment,col=Description)) +
-  geom_line() +
-  geom_point(size = 3) +
+  mutate(sig_qvals = if_else(qvalue<=0.2,1,0)) %>%
+  ggplot(aes(log10(qval),enrichment,col=factor((Description),levels=c(sig_pathways,not_sig_pathways)))) +
+  geom_line(size=2) +
+  geom_point(size = 4) +
   ylab("fold enrichment") +
-  geom_text(aes(log10(qval),enrichment,label=qvalue),hjust=1.2,vjust=1.2,col="black",size=3)
-ggsave("05_output_bird_mammal_comparison_results/birds_mammals_enrichment_plot.pdf",width=7,height=4)
+  scale_color_manual(values=pathway_colors,name="Pathway")
+
+ggsave("05_output_bird_mammal_comparison_results/birds_mammals_enrichment_plot.pdf",width=11,height=7)
 
 enrich_res %>%
   filter(Description %in% sig_pathways) %>%
   dplyr::select(qval,Description,enrichment,qvalue,BgRatio,GeneRatio)
+
+
+
+
+
+
+
 
 ###Compare proportions of genes selected in both mammals and birds at different q-value cutoffs
 #Plot bird vs. mammal log pvals, color by sig category
