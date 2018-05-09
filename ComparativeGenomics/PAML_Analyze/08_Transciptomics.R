@@ -312,12 +312,6 @@ all_res_birds_clean <- bind_rows(all_res_birds_singles_clean,
 
 save(all_res_birds_clean,file = "08_output_transcriptomics/birds_clean_transcriptomic_results.Rdat")
 
-#What is the representation of genes present in the different datasets?
-all_res_birds_clean %>%
-  group_by(ensembl_id_gg) %>%
-  summarize(n_test = n()) %>%
-  ggplot(aes(n_test)) +
-  geom_histogram()
 
 #What are the bioprojects by infections?
 all_res_birds_clean %>%
@@ -339,20 +333,27 @@ sig_res_simple <- all_res_gene_zf_hs %>%
 
 #Combine those significance results with transcriptome results
 influenza_res <- all_res_birds_clean %>%
-  filter(infect_type_virus_type=="west_nile_virus") %>%
+  filter(infect_type_virus_type=="paramyxovirus") %>%
   group_by(ensembl_id_gg) %>%
   summarize(beta_sig_overall = sum(beta_sig), sig_overall = sum(sig)) %>%
-  mutate(beta_sig = case_when(beta_sig_overall >= 1 ~ 1,
-                                      beta_sig_overall == 0 ~ 0,
-                                      beta_sig_overall <= -1 ~ -1),
+  mutate(beta_sig = case_when(#beta_sig_overall >= 2 ~ 1,
+                              beta_sig_overall == 1 ~ 1,
+                              beta_sig_overall == 0 ~ 0,
+                              beta_sig_overall == -1 ~ 1),
+                              #beta_sig_overall <= 2 ~ -1),
          sig = case_when(sig_overall >= 1 ~ 1,
                          sig_overall == 0 ~ 0,
                          sig_overall <= -1 ~ -1)) %>%
-  dplyr::select(-beta_sig,-sig) %>%
+  #dplyr::select(-beta_sig,-sig) %>%
   filter(ensembl_id_gg != "") %>%
   left_join(sig_res_simple,by=c("ensembl_id_gg")) %>%
   filter(!is.na(sig_all_tests)) %>%
-  mutate(expr_sig = if_else(beta_sig_overall!=0,1,0), up_reg = if_else(beta_sig_overall==1,1,0), down_reg = if_else(beta_sig_overall==-1,1,0)) 
+  mutate(expr_sig = if_else(beta_sig !=0,1,0), up_reg = if_else(beta_sig==1,1,0), down_reg = if_else(beta_sig==-1,1,0)) 
+
+influenza_res %>%
+  with(.,table(beta_sig))
+influenza_res %>%
+  with(.,table(beta_sig,sig_all_tests))
 
 influenza_res_sig_test <- influenza_res %>%
   glm(sig_all_tests ~ expr_sig, family="binomial",data=.)
@@ -364,6 +365,16 @@ influenza_res_downreg_test <- influenza_res %>%
   glm(sig_all_tests ~ down_reg, family="binomial",data=.)
 summary(influenza_res_downreg_test)
   
+
+
+influenza_res %>%
+  filter(up_reg ==1, sig_all_tests ==1) %>%
+  print(n=30)
+
+
+
+
+
 
 
 ################ Need to translate to human gene IDs 
