@@ -87,6 +87,168 @@ imm <-imm %>%
 
 write_csv(imm,path = "05_output_bird_mammal_comparison_results/bird_mammal_combined_dataset.csv")
 
+
+###################### 
+#What proportion of genes are under selection in both birds and mammals? Is there a significant overlap?
+#####################
+
+########
+#Calculate numbers of genes overlapping at q<0.1 - q<-0.0001 and Fisher's exact tests for significance.
+qvals <- c(0.1,0.01,0.001,0.0001)
+
+comp_propsig <- matrix(nrow=4,ncol=10)
+
+for (i in 1:length(qvals)){
+
+  comp_propsig[i,1] <- qvals[i]
+  
+  #Fisher's exact tests
+  comp_propsig[i,2:9] <- imm %>% with(., table(mammal_q < qvals[i], bird_q < qvals[i])) %>% fisher.test %>% unlist
+
+  #number of genes in each category
+  comp_propsig[i,10] <- imm %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>% summarize(n()) %>% pull
+
+  
+  colnames(comp_propsig) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes")
+ 
+}
+
+#Clean up, select relevant columns
+comp_propsig_clean <- comp_propsig %>%
+  as.tibble %>%
+  mutate(p.value=round(as.numeric(p.value),digits = 4),odds.ratio=round(as.numeric(estimated.odds.ratio),digits=2), conf.lower=round(as.numeric(conf.int1),digits=3), conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
+  dplyr::select(qval,n.genes,odds.ratio,conf.lower,conf.upper,p.value)
+
+write_csv(comp_propsig_clean,path="05_output_bird_mammal_comparison_results/mammal_bird_prop_selected_test_allq_overall_overlap.csv")
+
+#Create vector of asterisks to include in plots:
+comp_propsig_clean <- comp_propsig_clean %>%
+  mutate(sig = case_when(
+    is.na(p.value) ~ "",
+    p.value > 0.05 ~ "",
+    p.value <= 0.05 & p.value > 0.01 ~ "*",
+    p.value <= 0.01 & p.value > 0.001 ~ "**",
+    p.value <= 0.001 ~ "***"
+  ))
+
+comp_propsig_clean %>%
+  ggplot(aes(factor(qval,levels=c("1e-04","0.001","0.01","0.1")),odds.ratio)) +
+  geom_point(size=8,position=position_dodge(width=0.9),col="#44AA99") +
+  geom_linerange(aes(factor(qval,levels=c("0.1","0.01","0.001","1e-04")),ymin=conf.lower,ymax=conf.upper),size=2,col="#44AA99") +
+  geom_hline(aes(yintercept = 1),size=2,linetype="dashed",col="#882255") +
+  scale_x_discrete(labels=c("0.0001","0.001","0.01","0.1")) +
+  xlab("q-value") +
+  ylab("odds ratio") +
+  ylim(0,8) +
+  theme(axis.title = element_text(size=24), axis.text = element_text(size=18))
+
+ggsave(filename = "05_output_bird_mammal_comparison_results/mammal_bird_odds_ratio_selboth.pdf",width = 8, height=5)
+
+
+
+
+#Read back in imm if running later
+#imm <- read_csv("05_output_bird_mammal_comparison_results/bird_mammal_combined_dataset.csv")
+
+
+imm <- imm %>%
+  mutate(sig_birds_mammals =  case_when(
+    bird_q<=qval & mammal_q>qvals[i] ~ "birds",
+    bird_q>qval & mammal_q<=qvals[i] ~ "not_sig",
+    bird_q<=qval & mammal_q<=qvals[i] ~ "birds_and_mammals",
+    bird_q>qval & mammal_q>qvals[i] ~ "not_sig"),
+    sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+    sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
+
+
+
+###Which genes are under selection in both lineages?
+#Looking at q = 0.01
+qvals <- c(0.1,0.01,0.001,0.0001)
+enrich_res <- list()
+for (i in 1:length(qvals)){
+  imm <- imm %>%
+    mutate(sig_birds_mammals =  case_when(
+      bird_q<=qvals[i] & mammal_q>qvals[i] ~ "birds",
+      bird_q>qvals[i] & mammal_q<=qvals[i] ~ "mammals",
+      bird_q<=qvals[i] & mammal_q<=qvals[i] ~ "birds_and_mammals",
+      bird_q>qvals[i] & mammal_q>qvals[i] ~ "not_sig"),
+      sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+      sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
+  
+  sig_both_genes <- imm %>%
+    filter(sig_birds_mammals == "birds_and_mammals") %>%
+    pull(entrezgene) %>%
+    as.character
+  
+  sig_birds_genes <- imm %>%
+    filter(sig_birds) %>%
+    pull(entrezgene) %>%
+    as.character
+  
+  birds_mammals_k <- enrichKEGG(sig_both_genes,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=sig_birds_genes,keyType="ncbi-geneid")
+  birds_mammals_df <- summary(birds_mammals_k)
+  birds_mammals_df[,"qval"] <- qvals[i]
+  enrich_res[[i]] <- as.tibble(birds_mammals_df)
+}
+
+enrich_res <- bind_rows(enrich_res)
+
+enrich_res <- enrich_res %>%
+  separate(GeneRatio,into=c("sig_genes_pathway","sig_genes"),remove = F) %>%
+  separate(BgRatio, into=c("bg_sig_genes_pathway","bg_sig_genes"),remove = F) %>%
+  mutate(GeneRatio = as.numeric(sig_genes_pathway)/as.numeric(sig_genes)) %>%
+  mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_sig_genes_pathway)/as.numeric(bg_sig_genes)))
+
+enrich_res %>%
+  write_csv("05_output_bird_mammal_comparison_results/bird_mammal_pathway_enrichment.csv")
+
+#Read in previous bird results:
+bird_sig_pathways <- read_csv("04_output_pathway_results/chicken_genetree_pathwayres_p1_q0.1.csv")
+
+#Get sig bird pathways in bird mammal enrichment results
+sig_pathways <- bird_sig_pathways %>%
+  semi_join(enrich_res,by="Description") %>%
+  pull(Description)
+
+#Choose 10 pathways with the same nubmer of background sig genes, but not in these 10
+not_sig_pathways <- c("Ubiquitin mediated proteolysis","Spliceosome","Focal adhesion","NOD-like receptor signaling pathway","Protein processing in endoplasmic reticulum","Regulation of actin cytoskeleton","Vascular smooth muscle contraction","Ribosome biogenesis in eukaryotes","Purine metabolism","Pyrimidine metabolism")
+
+#pathway_colors <- c(brewer.pal(name = "PRGn",n=10),rep("grey",10))
+pathway_colors<- c("#88CCEE","#999933","#882255","#332288","#DDCC77","#117733","#CC6677","#AA4499","#44AA99","#AA7744",rep("grey",10))
+names(pathway_colors) <- c(sig_pathways,not_sig_pathways)
+
+
+enrich_res %>%
+  filter(Description %in% sig_pathways | Description %in% not_sig_pathways) %>%
+  mutate(qvalue = round(qvalue,2)) %>%
+  mutate(sig_qvals = if_else(qvalue<=0.2,1,0)) %>%
+  ggplot(aes(log10(qval),enrichment,col=factor((Description),levels=c(sig_pathways,not_sig_pathways)))) +
+  geom_line(size=2) +
+  geom_point(size = 5) +
+  ylab("fold enrichment") +
+  scale_color_manual(values=pathway_colors,name="Pathway")
+
+ggsave("05_output_bird_mammal_comparison_results/birds_mammals_enrichment_plot.pdf",width=9,height=7)
+
+enrich_res %>%
+  filter(Description %in% sig_pathways) %>%
+  dplyr::select(qval,Description,enrichment,qvalue,BgRatio,GeneRatio)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #############################################################################
 ###Use combined dataset to make inferences about similarity in selection###
 #############################################################################
@@ -534,95 +696,6 @@ ggsave("05_output_bird_mammal_comparison_results/birds_mammals_vips_bips_pips_si
 
 
 
-#Read back in imm if running later
-imm <- read_csv("05_output_bird_mammal_comparison_results/bird_mammal_combined_dataset.csv")
-
-
-imm <- imm %>%
-  mutate(sig_birds_mammals =  case_when(
-    bird_q<=qval & mammal_q>qvals[i] ~ "birds",
-    bird_q>qval & mammal_q<=qvals[i] ~ "not_sig",
-    bird_q<=qval & mammal_q<=qvals[i] ~ "birds_and_mammals",
-    bird_q>qval & mammal_q>qvals[i] ~ "not_sig"),
-    sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
-    sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
-
-
-
-###Which genes are under selection in both lineages?
-#Looking at q = 0.01
-qvals <- c(0.1,0.01,0.001,0.0001)
-enrich_res <- list()
-for (i in 1:length(qvals)){
-imm <- imm %>%
-  mutate(sig_birds_mammals =  case_when(
-    bird_q<=qvals[i] & mammal_q>qvals[i] ~ "birds",
-    bird_q>qvals[i] & mammal_q<=qvals[i] ~ "mammals",
-    bird_q<=qvals[i] & mammal_q<=qvals[i] ~ "birds_and_mammals",
-    bird_q>qvals[i] & mammal_q>qvals[i] ~ "not_sig"),
-    sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
-    sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE))
-
-sig_both_genes <- imm %>%
-  filter(sig_birds_mammals == "birds_and_mammals") %>%
-  pull(entrezgene) %>%
-  as.character
-
-sig_birds_genes <- imm %>%
-  filter(sig_birds) %>%
-  pull(entrezgene) %>%
-  as.character
-
-birds_mammals_k <- enrichKEGG(sig_both_genes,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=sig_birds_genes,keyType="ncbi-geneid")
-birds_mammals_df <- summary(birds_mammals_k)
-birds_mammals_df[,"qval"] <- qvals[i]
-enrich_res[[i]] <- as.tibble(birds_mammals_df)
-}
-
-enrich_res <- bind_rows(enrich_res)
-
-enrich_res <- enrich_res %>%
-  separate(GeneRatio,into=c("sig_genes_pathway","sig_genes"),remove = F) %>%
-  separate(BgRatio, into=c("bg_sig_genes_pathway","bg_sig_genes"),remove = F) %>%
-  mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_sig_genes_pathway)/as.numeric(bg_sig_genes)))
-
-enrich_res %>%
-  write_csv("05_output_bird_mammal_comparison_results/bird_mammal_pathway_enrichment.csv")
-
-#Read in previous bird results:
-bird_sig_pathways <- read_csv("04_output_pathway_results/chicken_genetree_pathwayres_p1_q0.1.csv")
-
-#Get sig bird pathways in bird mammal enrichment results
-sig_pathways <- bird_sig_pathways %>%
-  semi_join(enrich_res,by="Description") %>%
-  pull(Description)
-
-#Choose 10 pathways with the same nubmer of background sig genes, but not in these 10
-not_sig_pathways <- c("Ubiquitin mediated proteolysis","Spliceosome","Focal adhesion","NOD-like receptor signaling pathway","Protein processing in endoplasmic reticulum","Regulation of actin cytoskeleton","Vascular smooth muscle contraction","Ribosome biogenesis in eukaryotes","Purine metabolism","Pyrimidine metabolism")
-
-pathway_colors <- c(brewer.pal(name = "Paired",n=10),rep("grey",10))
-names(pathway_colors) <- c(sig_pathways,not_sig_pathways)
-
-
-enrich_res %>%
-  filter(Description %in% sig_pathways | Description %in% not_sig_pathways) %>%
-  mutate(qvalue = round(qvalue,2)) %>%
-  mutate(sig_qvals = if_else(qvalue<=0.2,1,0)) %>%
-  ggplot(aes(log10(qval),enrichment,col=factor((Description),levels=c(sig_pathways,not_sig_pathways)))) +
-  geom_line(size=2) +
-  geom_point(size = 4) +
-  ylab("fold enrichment") +
-  scale_color_manual(values=pathway_colors,name="Pathway")
-
-ggsave("05_output_bird_mammal_comparison_results/birds_mammals_enrichment_plot.pdf",width=11,height=7)
-
-enrich_res %>%
-  filter(Description %in% sig_pathways) %>%
-  dplyr::select(qval,Description,enrichment,qvalue,BgRatio,GeneRatio)
-
-
-
-
 
 
 
@@ -659,7 +732,7 @@ imm %>% filter(mammal_q<0.0001,bird_q<0.0001) %>% print(n=40)
 (imm %>% filter(!is.na(mammal_logp), !is.na(bird_logp)) %>% with(., table(bird_q < 0.1, mammal_q < 0.1)) %>% chisq.test)$observed
 (imm %>% filter(!is.na(mammal_logp), !is.na(bird_logp)) %>% with(., table(bird_q < 0.01, mammal_q < 0.01)) %>% fisher.test)
 (imm %>% filter(!is.na(mammal_logp), !is.na(bird_logp)) %>% with(., table(bird_q < 0.001, mammal_q < 0.001)) %>% chisq.test)$expected
-(imm %>% filter(!is.na(mammal_logp), !is.na(bird_logp)) %>% with(., table(bird_q < 0.0001, mammal_q < 0.0001)) %>% chisq.test)$expected
+(imm %>% filter(!is.na(mammal_logp), !is.na(bird_logp)) %>% with(., table(bird_q < 0.0001, mammal_q < 0.0001)) %>% fisher.test)
 
 imm %>% filter(!is.na(mammal_logp), !is.na(bird_logp)) %>% with(., table(bird_q < 0.1, mammal_q < 0.1))
 imm %>% filter(!is.na(mammal_logp), !is.na(bird_logp)) %>% with(., table(bird_q < 0.01, mammal_q < 0.01))

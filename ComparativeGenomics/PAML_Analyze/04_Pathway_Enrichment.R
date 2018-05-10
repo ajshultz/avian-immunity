@@ -2,6 +2,7 @@ library(tidyverse)
 library(DOSE)
 library(clusterProfiler)
 library(pathview)
+library(forcats)
 
 setwd("~/Dropbox/BirdImmuneGeneEvolution/")
 
@@ -70,10 +71,26 @@ all_sp_nocutoff_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=1,pAdjust
 write_csv(summary(all_sp_nocutoff_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_nocutoffs.csv")
 
 #Plots *Will finalize when we decide what is going in the paper
-dotplot(all_genes_k,showCategory=30)
-ggsave("04_output_pathway_results/chicken_genetree_qval0.1_dotplot.pdf",width=7,height=6)
+dotplot(all_genes_k,showCategory=30, colorBy="qvalue")
 
-pdf("04_output_pathway_results/chicken_genetree_qval0.1_cnetplot.pdf",width=8,height=8)
+## count the gene number
+all_genes_k %>%
+  as.tibble %>%
+  separate(GeneRatio,into=c("sig_genes_pathway","sig_genes"),remove = F) %>%
+  separate(BgRatio, into=c("bg_sig_genes_pathway","bg_sig_genes"),remove = F) %>%
+  mutate(GeneRatio = as.numeric(sig_genes_pathway)/as.numeric(sig_genes)) %>%
+  mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_sig_genes_pathway)/as.numeric(bg_sig_genes))) %>%
+  ggplot(aes(x = GeneRatio, y = fct_reorder(Description, GeneRatio))) + 
+  geom_point(aes(size = GeneRatio, color = qvalue)) +
+  theme_bw(base_size = 18) +
+  scale_color_gradient2(high="#332288", mid = "#DDCC77") +
+  guides(colour = guide_colorbar(reverse=T)) +
+  ylab(NULL) +
+  xlab("genes in pathway / significant genes")
+
+ggsave("04_output_pathway_results/chicken_genetree_qval0.1_dotplot.pdf",width=8,height=7)
+
+svg("04_output_pathway_results/chicken_genetree_qval0.1_cnetplot.svg",width=8,height=8)
 cnetplot(all_genes_k,categorySize="pvalue",showCategory=30,fixed=TRUE)
 dev.off()
 
