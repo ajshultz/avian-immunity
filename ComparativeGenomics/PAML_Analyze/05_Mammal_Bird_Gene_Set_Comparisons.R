@@ -96,7 +96,7 @@ write_csv(imm,path = "05_output_bird_mammal_comparison_results/bird_mammal_combi
 #Calculate numbers of genes overlapping at q<0.1 - q<-0.0001 and Fisher's exact tests for significance.
 qvals <- c(0.1,0.01,0.001,0.0001)
 
-comp_propsig <- matrix(nrow=4,ncol=10)
+comp_propsig <- matrix(nrow=4,ncol=11)
 
 for (i in 1:length(qvals)){
 
@@ -107,9 +107,14 @@ for (i in 1:length(qvals)){
 
   #number of genes in each category
   comp_propsig[i,10] <- imm %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>% summarize(n()) %>% pull
+  
+  #number of genes significant in both in each category
+  comp_propsig[i,11] <- imm %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
+    filter(mammal_q < qvals[i], bird_q < qvals[i]) %>%
+    summarize(n()) %>% pull
 
   
-  colnames(comp_propsig) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes")
+  colnames(comp_propsig) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both")
  
 }
 
@@ -117,7 +122,7 @@ for (i in 1:length(qvals)){
 comp_propsig_clean <- comp_propsig %>%
   as.tibble %>%
   mutate(p.value=round(as.numeric(p.value),digits = 4),odds.ratio=round(as.numeric(estimated.odds.ratio),digits=2), conf.lower=round(as.numeric(conf.int1),digits=3), conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
-  dplyr::select(qval,n.genes,odds.ratio,conf.lower,conf.upper,p.value)
+  dplyr::select(qval,n.genes,n.sig.both,odds.ratio,conf.lower,conf.upper,p.value)
 
 write_csv(comp_propsig_clean,path="05_output_bird_mammal_comparison_results/mammal_bird_prop_selected_test_allq_overall_overlap.csv")
 

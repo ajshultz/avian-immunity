@@ -266,9 +266,9 @@ hm_pc1 <- pgls(PC1 ~ log(heart_mass_median), data = comp_dataset, lambda = "ML")
 summary(hm_pc1)
 bm_pc1 <- pgls(PC1 ~ log(body_mass_median), data = comp_dataset, lambda = "ML")
 summary(bm_pc1)
-cr1_pc1 <- pgls(PC1 ~ `scaled length of CR1`, data = comp_dataset, lambda = "ML")
+cr1_pc1 <- pgls(PC1 ~ scaled_length_cr1, data = comp_dataset, lambda = "ML")
 summary(cr1_pc1)
-bmr_pc1 <- pgls(PC1 ~ `mass-specific BMR (W/Kg)`, data = comp_dataset, lambda = "ML")
+bmr_pc1 <- pgls(PC1 ~ mass_specific_bmr, data = comp_dataset, lambda = "ML")
 summary(bmr_pc1)
 
 
