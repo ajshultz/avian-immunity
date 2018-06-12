@@ -18,10 +18,13 @@ def get_align_info(hog):
     
     align_file = '%s%s.phy'%(fullpath,hog)
     
-    with open(align_file) as align:
-        first_line = align.readline()
-        
-    hog_info = first_line.strip().split(" ")
+    try:
+        with open(align_file) as align:
+            first_line = align.readline()
+        hog_info = first_line.strip().split(" ")
+    except:
+        print('no alignment file for hog %s'%hog)
+        hog_info = ["",""]
     
     return(hog_info)
     
@@ -39,13 +42,12 @@ def main():
     resfile = open(resfile_foroutput,"w")
     resfile.write('hog\tnseq\tlength\n')
     
-    res_dict = {}
+    #Run each hog through function to grab alignment info, write to file
     for hog in hogs:
-        res_dict[int(hog)] = get_align_info(hog)
+        hog_res = get_align_info(hog)
+        resfile.write('%s\t%s\t%s\n'%(hog,hog_res[0],hog_res[1]))
         
-    
-    for hog in sorted(res_dict):
-        resfile.write('%d\t%s\t%s\n'%(hog,res_dict[hog][0],res_dict[hog][1]))
+        print('hog %s done'%hog)
 
     resfile.close()
 
