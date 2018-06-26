@@ -106,11 +106,13 @@ all_res_gene_zf_hs <- all_res_gene_ncbi %>%
   left_join(gg_trans_table,by="entrezgene") %>%
   left_join(zf_trans_table,by="entrezgene_zf") %>%
   mutate(entrezgene_hs = coalesce(entrezgene_hs.x,entrezgene_hs.y), ensembl_gene_id_hs = coalesce(hsapiens_homolog_ensembl_gene.x,hsapiens_homolog_ensembl_gene.y))
+write_delim(all_res_gene_zf_hs,path="02_output_annotated_data/raw_results_genetrees_all_annotations.csv",delim=",")
 
 all_res_sp_zf_hs <- all_res_sp_ncbi %>%
   left_join(gg_trans_table,by="entrezgene") %>%
   left_join(zf_trans_table,by="entrezgene_zf") %>%
   mutate(entrezgene_hs = coalesce(entrezgene_hs.x,entrezgene_hs.y), ensembl_gene_id_hs = coalesce(hsapiens_homolog_ensembl_gene.x,hsapiens_homolog_ensembl_gene.y))
+write_delim(all_res_sp_zf_hs,path="02_output_annotated_data/raw_results_sptrees_all_annotations.csv",delim=",")
 
 
 save(all_res_gene_zf_hs,all_res_sp_zf_hs,file="02_output_annotated_data/all_res_zf_hs.Rdat")

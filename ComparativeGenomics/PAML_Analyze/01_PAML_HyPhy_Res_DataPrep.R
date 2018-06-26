@@ -102,6 +102,21 @@ all_paml %>% group_by(hog_treenum) %>%
   print(n=100)
 
 
+#######################################################################################################################
+
+##Read in alignment length information
+align_lengths <- read_delim("01_input_raw_paml_hyphy_results/all_hogs_alignment_lengths.txt",delim="\t")
+
+#Vector to remove all hogs with alignment lengths < 100 bp
+short_hogs <- align_lengths %>%
+  filter(length < 100) %>%
+  mutate(hog = as.character(hog)) %>%
+  pull(hog)
+
+#Filter from PAML dataset
+all_paml <- all_paml %>%
+  filter(!(hog %in% short_hogs))
+
 
 #######################################################################################################################
 #LRT and p-value calc for PAML results, and split into gene and species trees
@@ -174,10 +189,16 @@ omega_m8 <- function(hogid,results){
 #Split PAML results into gene and species trees, note that tree1 is the species tree - in cases where the gene tree and the species tree match (so there is only 1 tree, it is marked as "species_tree" is False.)
 gene_trees <- paml_res_m0 %>%
   filter(species_tree == "False") %>%
+  separate(hog_treenum,into=c("hog"),extra="drop",remove=FALSE) %>%
+  filter(!(hog %in% short_hogs)) %>%
+  dplyr::select(-hog) %>%
   pull(hog_treenum)
 
 sp_trees <- paml_res_m0 %>%
   filter(species_tree == "True") %>%
+  separate(hog_treenum,into=c("hog"),extra="drop",remove=FALSE) %>%
+  filter(!(hog %in% short_hogs)) %>%
+  dplyr::select(-hog) %>%
   pull(hog_treenum)
 
 #Calculate p-values for all hogs between neutral and positive selection models (including FDR p-values)
@@ -251,9 +272,10 @@ paml_pval_allgenes_sp <- paml_pval_allgenes_sp %>%
   dplyr::select(-species_tree,-newick_string, -lnl_m0) %>%
   dplyr::rename(Omega_m0 = omega_m0, Kappa_m0 = kappa_m0)
 
-#Remove HOG 2337, which got reduced to only 6 nucleotides
-paml_pval_allgenes_gene <- paml_pval_allgenes_gene %>%
-  filter(hog != "2337")
+#Remove non-species tree hogs from dataset
+paml_pval_allgenes_sp <- paml_pval_allgenes_sp %>%
+  filter(hog_treenum %in% sp_trees)
+
 
 save(paml_pval_allgenes_gene,paml_pval_allgenes_sp,file="01_output_processed_data/paml_pvals_allgenes.RDat")
 
@@ -264,24 +286,38 @@ save(paml_pval_allgenes_gene,paml_pval_allgenes_sp,file="01_output_processed_dat
 #Calculate adusted p-values for Busted analyses, remove problematic hog
 hyphy_res_gene <- hyphy_res %>%
   filter(hog_treenum %in% gene_trees) %>%
-  mutate(FDRPval_busted = p.adjust(pval_busted,method="BH")) %>%
-  filter(hog_treenum != "2337_1")
+  separate(hog_treenum,into=c("hog"),extra="drop",remove = FALSE) %>%
+  filter(!(hog %in% short_hogs)) %>%
+  dplyr::select(-hog) %>%
+  mutate(FDRPval_busted = p.adjust(pval_busted,method="BH"))
+
 
 hyphy_res_sp <- hyphy_res %>%
   filter(hog_treenum %in% sp_trees) %>%
+  separate(hog_treenum,into=c("hog"),extra="drop",remove = FALSE) %>%
+  filter(!(hog %in% short_hogs)) %>%
+  dplyr::select(-hog) %>%
   mutate(FDRPval_busted = p.adjust(pval_busted,method="BH"))
 
 save(hyphy_res_gene,hyphy_res_sp,file="01_output_processed_data/hyphy_res_allgenes.RDat")
 
 #Subset branch-specific bsrel values
 bsrel_sp_pval_res_gene <- bsrel_sp_pval_res %>%
-  filter(hog_treenum %in% gene_trees)
+  filter(hog_treenum %in% gene_trees) %>%
+  separate(hog_treenum,into=c("hog"),extra="drop",remove=FALSE) %>%
+  filter(!(hog %in% short_hogs)) %>%
+  dplyr::select(-hog)
 bsrel_sp_pval_res_sp <- bsrel_sp_pval_res %>%
-  filter(hog_treenum %in% sp_trees)
+  filter(hog_treenum %in% sp_trees) %>%
+  separate(hog_treenum,into=c("hog"),extra="drop",remove=FALSE) %>%
+  filter(!(hog %in% short_hogs)) %>%
+  dplyr::select(-hog)
 
 save(bsrel_sp_pval_res_gene,bsrel_sp_pval_res_sp,file="01_output_processed_data/bsrel_spval_res.RDat")
 
-all_res_gene <- paml_pval_allgenes_gene %>% full_join(hyphy_res_gene,by="hog_treenum")
-all_res_sp <- paml_pval_allgenes_sp %>% full_join(hyphy_res_sp,by="hog_treenum")
+all_res_gene <- paml_pval_allgenes_gene %>%
+  full_join(hyphy_res_gene,by="hog_treenum")
+all_res_sp <- paml_pval_allgenes_sp %>%
+  full_join(hyphy_res_sp,by="hog_treenum")
 
 save(all_res_gene,all_res_sp,file="01_output_processed_data/all_res_allgenes.RDat")

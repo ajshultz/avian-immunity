@@ -76,35 +76,10 @@ n_sig_sp <- all_sel %>%
   summarize(n_sel = sum(sel>0))
 
 
-#PCA
-all_sel_t <- t(all_sel)
-pca_sp <- prcomp(all_sel_t)
-summary(pca_sp)
-
-loading <- pca_sp$rotation %>%
-  as.data.frame %>%
-  rownames_to_column("hog") %>%
-  as.tibble
-
-#Scree plot
-pdf("06_output_cluster_by_species/pca_sp_scree_plot.pdf")
-plot(pca_sp)
-dev.off()
-
-write_csv(data.frame(pca_sp$rotation),"06_output_cluster_by_species/pca_sp_loadings.csv")
-write_csv(data.frame(pca_sp$x),"06_output_cluster_by_species/pca_sp_coordinates.csv")
-
-pca_sp$x %>%
-  as.data.frame %>%
-  rownames_to_column() %>%
-  as.tibble %>%
-  ggplot(aes(PC1,PC2,label = rowname)) +
-  geom_text()
-
 #####PCA with p-values as input
 load("01_output_processed_data/bsrel_spval_res.RDat")
 
-
+#Replace NA values with mean for hog
 rep_na_mean <- function(vec){
   m <- mean(vec, na.rm = TRUE) 
   vec[is.na(vec)] <- m 
@@ -155,11 +130,10 @@ bsrel_sp_pval_res_gene_forpca <- bsrel_sp_pval_res_gene_raw %>%
 rownames(bsrel_sp_pval_res_gene_forpca) <- bsrel_sp_pval_res_gene_forpca$sp
 bsrel_sp_pval_res_gene_forpca$sp <- NULL
 
-
-
+#Run PCA
 pca_pvals <- prcomp(bsrel_sp_pval_res_gene_forpca)
-summary(pca_pvals)
 
+#Extract loadings
 loading <- pca_pvals$rotation %>%
   as.data.frame %>%
   rownames_to_column("hog") %>%
@@ -173,33 +147,127 @@ dev.off()
 write_csv(data.frame(pca_pvals$rotation),"06_output_cluster_by_species/pca_sp_pvals_loadings.csv")
 write_csv(data.frame(pca_pvals$x),"06_output_cluster_by_species/pca_sp_pvals_coordinates.csv")
 
-pca_pvals$x %>%
-  as.data.frame %>%
-  rownames_to_column() %>%
-  as.tibble %>%
-  ggplot(aes(PC1,PC2,label = rowname)) +
-  geom_text()
-
 pca_sp <- pca_pvals
 
-
-#sp_tree_bl <- read.tree("06_input_cluster_by_species/11700.tree1.nwk")
-sp_tree_bl <- read.tree("Alignments/10090.tree1.nwk")
+#Read in tree, chose random hog to give branch lengths. Species tree has same topology for all hogs.
+sp_tree_bl <- read.tree("06_input_cluster_by_species/11700.tree1.nwk")
+#sp_tree_bl <- read.tree("Alignments/10090.tree1.nwk")
 sp_tree <- read.tree("06_input_cluster_by_species/11700.final_spt.nwk")
 
+#Making custom version of plotBranchbyTrait from phytools to include plotting without branch lengths and custom color palette.
+plotBranchbyTrait<-function(tree,x,mode=c("edges","tips","nodes"),palette="rainbow",legend=TRUE,xlims=NULL,...){
+  mode<-mode[1]
+  if(mode=="tips"){
+    x<-c(x[tree$tip.label],fastAnc(tree,x))
+    names(x)[1:length(tree$tip.label)]<-1:length(tree$tip.label)
+    XX<-matrix(x[tree$edge],nrow(tree$edge),2)
+    x<-rowMeans(XX)
+  } else if(mode=="nodes"){
+    XX<-matrix(x[tree$edge],nrow(tree$edge),2)
+    x<-rowMeans(XX)
+  }
+  # begin optional arguments
+  if(hasArg(tol)) tol<-list(...)$tol
+  else tol<-1e-6
+  if(hasArg(prompt)) prompt<-list(...)$prompt
+  else prompt<-FALSE
+  if(hasArg(type)) type<-list(...)$type
+  else type<-"phylogram"
+  if(hasArg(show.tip.label)) show.tip.label<-list(...)$show.tip.label
+  else show.tip.label<-TRUE
+  if(hasArg(show.node.label)) show.node.label<-list(...)$show.node.label
+  else show.node.label<-FALSE
+  if(hasArg(edge.width)) edge.width<-list(...)$edge.width
+  else edge.width<-4
+  if(hasArg(edge.lty)) edge.lty<-list(...)$edge.lty
+  else edge.lty<-1
+  if(hasArg(font)) font<-list(...)$font
+  else font<-3
+  if(hasArg(cex)) cex<-list(...)$cex
+  else cex<-par("cex")
+  if(hasArg(adj)) adj<-list(...)$adj
+  else adj<-NULL
+  if(hasArg(srt)) srt<-list(...)$srt
+  else srt<-0
+  if(hasArg(no.margin)) no.margin<-list(...)$no.margin
+  else no.margin<-TRUE
+  if(hasArg(label.offset)) label.offset<-list(...)$label.offset
+  else label.offset<-0.01*max(nodeHeights(tree))
+  if(hasArg(underscore)) underscore<-list(...)$underscore
+  else underscore<-FALSE
+  if(hasArg(x.lim)) x.lim<-list(...)$x.lim
+  else x.lim<-NULL
+  if(hasArg(y.lim)) y.lim<-list(...)$y.lim
+  else y.lim<-if(legend&&!prompt) c(1-0.06*length(tree$tip.label),length(tree$tip.label)) else NULL
+  if(hasArg(direction)) direction<-list(...)$direction
+  else direction<-"rightwards"
+  if(hasArg(lab4ut)) lab4ut<-list(...)$lab4ut
+  else lab4ut<-"horizontal"
+  if(hasArg(tip.color)) tip.color<-list(...)$tip.color
+  else tip.color<-"black"
+  if(hasArg(plot)) plot<-list(...)$plot
+  else plot<-TRUE
+  if(hasArg(rotate.tree)) rotate.tree<-list(...)$rotate.tree
+  else rotate.tree<-0
+  if(hasArg(open.angle)) open.angle<-list(...)$open.angle
+  else open.angle<-0
+  if(hasArg(use.edge.length)) use.edge.length<-list(...)$use.edge.length
+  else use.edge.length<-TRUE
+  # end optional arguments
+  if(palette=="heat.colors") cols<-heat.colors(n=1000)
+  if(palette=="gray") cols<-gray(1000:1/1000)
+  if(palette=="rainbow")	cols<-rainbow(1000,start=0.7,end=0) # blue->red
+  if(palette=="custom") {colfunct<-colorRampPalette(c("#3D52A1","#77B7E5","#FFFAD2","#ED875E","#AE1C3E"))
+  cols <- colfunct(1000)}
+  if(is.null(xlims)) xlims<-range(x)+c(-tol,tol)
+  breaks<-0:1000/1000*(xlims[2]-xlims[1])+xlims[1]
+  whichColor<-function(p,cols,breaks){
+    i<-1
+    while(p>=breaks[i]&&p>breaks[i+1]) i<-i+1
+    cols[i]
+  }
+  colors<-sapply(x,whichColor,cols=cols,breaks=breaks)
+  par(lend=2)
+  # now plot
+  tree <- compute.brlen(tree)
+  xx<-plot.phylo(tree,type=type,show.tip.label=show.tip.label,show.node.label=show.node.label,edge.color=colors,
+                 edge.width=edge.width,edge.lty=edge.lty,font=font,cex=cex,adj=adj,srt=srt,no.margin=no.margin,root.edge=root.edge,
+                 label.offset=label.offset,underscore=underscore,x.lim=x.lim,y.lim=y.lim,direction=direction,lab4ut=lab4ut,
+                 tip.color=tip.color,plot=plot,rotate.tree=rotate.tree,open.angle=open.angle,lend=2,new=FALSE,use.edge.length=FALSE)
+  if(legend==TRUE&&is.logical(legend)) legend<-round(15*max(nodeHeights(tree)),2)
+  if(legend){
+    if(hasArg(title)) title<-list(...)$title
+    else title<-"trait value"
+    if(hasArg(digits)) digits<-list(...)$digits
+    else digits<-1
+    add.color.bar(legend,cols,title,xlims,digits,prompt=prompt)
+  }
+  invisible(xx)
+}
 
-pdf("06_output_cluster_by_species/PC_individual.pdf")
-plotBranchbyTrait(sp_tree_bl,pca_sp$x[,"PC1"],mode="tips",palette = "heat.colors")
-plotBranchbyTrait(sp_tree_bl,pca_sp$x[,"PC2"],mode="tips",palette = "heat.colors")
-plotBranchbyTrait(sp_tree_bl,pca_sp$x[,"PC3"],mode="tips",palette = "heat.colors")
-plotBranchbyTrait(sp_tree_bl,pca_sp$x[,"PC4"],mode="tips",palette = "heat.colors")
-plotBranchbyTrait(sp_tree_bl,pca_sp$x[,"PC5"],mode="tips",palette = "heat.colors")
+sp_tree_bl_names <- sp_tree_bl
+species_info_df <- species_info %>%
+  as.data.frame() %>%
+  column_to_rownames("code")
+
+sp_tree_bl_names$tip.label <- species_info_df[sp_tree_bl_names$tip.label,"common_name"]
+
+sp_names_PC1 <- pca_sp$x[,"PC1"]
+names(sp_names_PC1) <- species_info_df[names(sp_names_PC1),"common_name"]
+sp_names_PC2 <- pca_sp$x[,"PC2"]
+names(sp_names_PC2) <- species_info_df[names(sp_names_PC2),"common_name"]
+sp_names_PC3 <- pca_sp$x[,"PC3"]
+names(sp_names_PC3) <- species_info_df[names(sp_names_PC3),"common_name"]
+
+pdf("06_output_cluster_by_species/PC_individual_PC1.pdf")
+plotBranchbyTrait(sp_tree_bl_names,sp_names_PC1,mode="tips",palette = "custom",use.edge.length=FALSE)
 dev.off()
-
-pdf("06_output_cluster_by_species/PCA_1.5_heatmap.pdf")
-phylo.heatmap(tree=sp_tree,X=pca_sp$x[,1:3],colors = brewer.pal(n=9,name="PRGn"))
+pdf("06_output_cluster_by_species/PC_individual_PC2.pdf")
+plotBranchbyTrait(sp_tree_bl_names,sp_names_PC2,mode="tips",palette = "custom",use.edge.length=FALSE)
 dev.off()
-
+pdf("06_output_cluster_by_species/PC_individual_PC3.pdf")
+plotBranchbyTrait(sp_tree_bl_names,sp_names_PC3,mode="tips",palette = "custom",use.edge.length=FALSE)
+dev.off()
 
 
  
@@ -220,151 +288,42 @@ sp_coord_anno %>%
   ggplot(aes(PC1,log(body_mass_mean_hbabm))) +
   geom_point() +
   ylab("log(body mass)")
-ggsave("06_output_cluster_by_species/PC1_log_BM_HABM.png")
-
-sp_coord_anno %>%
-  ggplot(aes(PC1,log(body_mass_mean))) +
-  geom_point()
+ggsave("06_output_cluster_by_species/PC1_log_BM_HABM.pdf",width=6,height=4)
 
 sp_coord_anno %>%
   ggplot(aes(lifespan,log(body_mass_mean_hbabm))) +
-  geom_point()
+  geom_point() +
+  ylab("log(body mass)")
+ggsave("06_output_cluster_by_species/lifespan_log_BM_HABM.pdf",width=6,height=4)
 
 sp_coord_anno %>%
   ggplot(aes(PC1,lifespan)) +
   geom_point()
-
-sp_coord_anno %>%
-  #filter(sp_abbr != "calAnn") %>%
-  ggplot(aes(PC1,heart_index)) +
-  geom_point()
-
-sp_coord_anno %>%
-  ggplot(aes(PC1,scaled_length_cr1)) +
-  geom_point()
-
-sp_coord_anno %>%
-  ggplot(aes(PC1,assembly_size_gb)) +
-  geom_point()
-
-sp_coord_anno %>%
-  ggplot(aes(PC1,agsd_genome_size_pg)) +
-  geom_point()
-
-sp_coord_anno %>%
-  ggplot(aes(PC1,mass_specific_bmr)) +
-  geom_point()
-
-sp_coord_anno_df <- sp_coord_anno %>%
-  as.data.frame
+ggsave("06_output_cluster_by_species/PC1_lifespan.pdf",width=6,height=4)
 
 
-comp_dataset <- comparative.data(sp_tree_bl,sp_coord_anno_df, sp_abbr, vcv = T, vcv.dim = 3, na.omit=F)
-hi_pc1 <- pgls(PC1 ~ heart_index, data = comp_dataset, lambda = "ML")
-summary(hi_pc1)
-hm_pc1 <- pgls(PC1 ~ log(heart_mass_median), data = comp_dataset, lambda = "ML")
-summary(hm_pc1)
-bm_pc1 <- pgls(PC1 ~ log(body_mass_median), data = comp_dataset, lambda = "ML")
-summary(bm_pc1)
-cr1_pc1 <- pgls(PC1 ~ scaled_length_cr1, data = comp_dataset, lambda = "ML")
-summary(cr1_pc1)
-bmr_pc1 <- pgls(PC1 ~ mass_specific_bmr, data = comp_dataset, lambda = "ML")
-summary(bmr_pc1)
-
-
-#Create reduced datasets with only species with body size/heart size data
-red_dataset <- sp_coord_anno %>%
-  #filter(sp_abbr != "calAnn") %>%
-  filter(!is.na(heart_mass_mean)) %>%
-  as.data.frame
-rownames(red_dataset) <- red_dataset$sp_abbr
-
-red_sp_tree_bl <- drop.tip(sp_tree_bl,tip = setdiff(sp_tree_bl$tip.label,red_dataset$sp_abbr))
-
-#Run PGLS
-comp_dataset <- comparative.data(red_sp_tree_bl,red_dataset, sp_abbr, vcv = T, vcv.dim = 3, na.omit=F)
-hi_pc1 <- pgls(PC1 ~ heart_index, data = comp_dataset, lambda = "ML")
-summary(hi_pc1)
-hm_pc1 <- pgls(PC1 ~ log(heart_mass_mean), data = comp_dataset, lambda = "ML")
-summary(hm_pc1)
-bm_pc1 <- pgls(PC1 ~ log(body_mass_mean), data = comp_dataset, lambda = "ML")
-summary(bm_pc1)
-
-
-
-#Correlation with handbook of avian body masses
+#Correlation between PC1 and avian body masses
 rownames(sp_coord_anno_df) <- sp_coord_anno_df$sp_abbr
 bm_hbabm_pc1 <- gls(PC1 ~ log(body_mass_mean_hbabm),correlation=corBrownian(1,sp_tree_bl),data=sp_coord_anno_df)
+ou_hbabm_pc1 <- gls(PC1 ~ log(body_mass_mean_hbabm),correlation=corMartins(1,sp_tree_bl),data=sp_coord_anno_df)
+sink("06_output_cluster_by_species/bodymass_PC1_PGLSCorr.txt")
 summary(bm_hbabm_pc1)
+summary(ou_hbabm_pc1)
+sink()
 
-#Correlation with lifespan
+#Correlation between PC1 and  lifespan
 red_anno <- sp_coord_anno_df[!is.na(sp_coord_anno_df$lifespan),]
 red_sp_tree_bl <- drop.tip(sp_tree_bl,setdiff(sp_tree_bl$tip.label,rownames(red_anno)))
 bm_lifespan_pc1 <- gls(PC1 ~ lifespan,correlation=corBrownian(1,red_sp_tree_bl),data=red_anno)
+ou_lifespan_pc1 <- gls(PC1 ~ lifespan,correlation=corMartins(1,red_sp_tree_bl),data=red_anno)
+sink("06_output_cluster_by_species/lifespan_PC1_PGLSCorr.txt")
 summary(bm_lifespan_pc1)
-
-
-#Phylogenetic regression of body size score and branch pval of each species
-
-#Is there any enrichment in KEGG pathways, given PC loading scores?
-#Pull vector of hogs that have at least 1 selected branch:
-sel_hogs <- n_sig_sp %>% filter(n_sel > 1) %>% pull(hog)
-names_sel_hogs <- paste0("hog_",sel_hogs)
-
-hog_phylo_reg_res <- matrix(nrow=length(names_sel_hogs),ncol=3)
-hog_phylo_reg_res[,1] <- sel_hogs
-
-#Create a combo dataset with selected branches and species data
-comb_data <- bsrel_sp_pval_res_gene_forpca %>%
-  rownames_to_column(var = "sp_abbr") %>%
-  as.tibble %>%
-  left_join(sp_coord_anno)
-
-bm_hog_res <- list()
-#For each hog that has at least 1 selected branch, perform PGLS between mean body mass and selected branches. Record p-value, correlation
-for (i in 1:length(names_sel_hogs)){
-  hog <- names_sel_hogs[i]
-  data <- comb_data %>%
-    dplyr::select(sp_abbr,hog,body_mass_mean_hbabm) %>%
-    as.data.frame
-  rownames(data) <- data$sp_abbr
-  
-  hog_formula <- paste0(hog,"~log(body_mass_mean_hbabm)")
-  
-  try(bm_hog_res[[i]] <- gls(as.formula(hog_formula),correlation=corBrownian(1,sp_tree_bl),data=data))
-  try(hog_phylo_reg_res[i,2] <- summary(bm_hog_res[[i]])$tTable[2,4])
-  try(hog_phylo_reg_res[i,3] <- summary(bm_hog_res[[i]])$tTable[2,1])
-}
-
-colnames(hog_phylo_reg_res) <- c("hog","pvalue","coefficient")
-
-hog_phylo_reg_res <- hog_phylo_reg_res %>%
-  as.tibble %>%
-  mutate(pvalue = as.double(pvalue), coefficient = as.double(coefficient))
-
-save(bm_hog_res,hog_phylo_reg_res,file ="06_output_cluster_by_species/bodymass_sppvals_lm_res.Rdat")
-
-hog_phylo_reg_res_anno <- hog_phylo_reg_res %>%
-  left_join(all_res_gene_zf_hs) %>%
-  dplyr::select(entrezgene,entrezgene_hs,pvalue,coefficient,FDRPval_busted,hog) %>%
-  mutate(FDRPval_corr = p.adjust(pvalue,method="BH")) %>%
-  arrange(FDRPval_corr)
-
-
-comb_data %>%
-  ggplot(aes(log(body_mass_mean_hbabm),sqrt(abs(hog_635)))) + geom_point()
-
-comb_data %>%
-  ggplot(aes(sqrt(abs(hog_635)))) + geom_histogram()
-
-
-
-
+summary(ou_lifespan_pc1)
+sink()
 
 
 ###Look at correlations with selected pvalues and body mass with Spearman's rank correlation, to account for non-normalcy (but doesn't account for phylogenetic structure)
 #Is there any enrichment in KEGG pathways, given PC loading scores?
-#Need to remake datasets to include missing data instead of using means, as we did for PCA
 bsrel_sp_pval_res_gene_raw_na <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "pval") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
@@ -388,15 +347,12 @@ hogs_to_keep <- bsrel_sp_pval_res_gene %>%
   filter(n_pvals > 0) %>%
   pull(hog)
 
-#Prep format for PCA
+#Prep format for correlation
 bsrel_sp_pval_res_gene_forcorr <- bsrel_sp_pval_res_gene_raw_na %>%
   dplyr::select(sp,hogs_to_keep) %>%
   as.data.frame
 rownames(bsrel_sp_pval_res_gene_forcorr) <- bsrel_sp_pval_res_gene_forcorr$sp
 bsrel_sp_pval_res_gene_forcorr$sp <- NULL
-
-
-
 
 
 #Pull vector of hogs that have at least 1 selected branch:
@@ -442,6 +398,7 @@ hog_phylo_spear_res <- hog_phylo_spear_res %>%
   mutate(pvalue = as.double(pvalue), rho = as.double(rho), statistic = as.double(statistic))
 
 save(bm_hog_res,hog_phylo_spear_res,file ="06_output_cluster_by_species/bodymass_sppvals_spearman_res.Rdat")
+load("06_output_cluster_by_species/bodymass_sppvals_spearman_res.Rdat")
 
 hog_phylo_spear_res_anno <- hog_phylo_spear_res %>%
   left_join(all_res_gene_zf_hs) %>%
@@ -451,339 +408,63 @@ hog_phylo_spear_res_anno <- hog_phylo_spear_res %>%
   arrange(FDRPval_spear)
 
 
-#hog_phylo_spear_res_anno <- hog_phylo_spear_res_anno %>%
-#  left_join(n_sig_sp,by="hog")
 
-hog_phylo_spear_res_anno %>%
-  ggplot(aes(factor(n_sel),FDRPval_spear)) +
-  geom_boxplot() +
-  theme_bw()
-ggsave("06_output_cluster_by_species/Spear_pval_by_nsp.pdf",width=10,height=4)
-
-
-
-
-
-
-#Phylogenetic regression of body size score and presence or absense of each species
-hog_phylo_reg_res <- matrix(nrow=length(names_sel_hogs),ncol=3)
-
-rownames(all_sel) <- paste0("hog_",rownames(all_sel))
-colnames(all_sel_t) <- paste0("hog_",colnames(all_sel_t))
-
-#Is there any enrichment in KEGG pathways, given PC loading scores?
-#Pull vector of hogs that have at least 1 selected branch:
-sel_hogs <- n_sig_sp %>% filter(n_sel > 1) %>% pull(hog)
-names_sel_hogs <- paste0("hog_",sel_hogs)
-
-hog_phylo_reg_res[,1] <- sel_hogs
-#Create a combo dataset with selected branches and species data
-comb_data <- all_sel_t %>%
-  as.data.frame %>%
-  rownames_to_column(var = "sp_abbr") %>%
-  as.tibble %>%
-  left_join(sp_coord_anno)
-
-bm_hog_res <- list()
-#For each hog that has at least 1 selected branch, perform PGLS between mean body mass and selected branches. Record p-value, correlation
-for (i in 1:length(names_sel_hogs)){
-  hog <- names_sel_hogs[i]
-  data <- comb_data %>%
-    dplyr::select(sp_abbr,hog,body_mass_mean) %>%
-    as.data.frame
-  
-  red_dataset <- comb_data %>%
-    filter(!is.na(body_mass_mean)) %>%
-    dplyr::select(sp_abbr,hog,body_mass_mean) %>%
-    as.data.frame
-  rownames(red_dataset) <- red_dataset$sp_abbr
-  red_sp_tree_bl <- drop.tip(sp_tree_bl,tip = setdiff(sp_tree_bl$tip.label,red_dataset$sp_abbr))
-  
-  hog_formula <- paste0(hog,"~log(body_mass_mean)")
-  
-  try(bm_hog_res[[i]] <- gls(as.formula(hog_formula),correlation=corBrownian(1,red_sp_tree_bl),data=red_dataset))
-  try(hog_phylo_reg_res[i,2] <- summary(bm_hog_res[[i]])$tTable[2,4])
-  try(hog_phylo_reg_res[i,3] <- summary(bm_hog_res[[i]])$tTable[2,1])
-}
-
-colnames(hog_phylo_reg_res) <- c("hog","pvalue","coefficient")
-
-hog_phylo_reg_res <- hog_phylo_reg_res %>%
-  as.tibble %>%
-  mutate(pvalue = as.double(pvalue), coefficient = as.double(coefficient))
-
-save(bm_hog_res,hog_phylo_reg_res,file ="06_output_cluster_by_species/bodymass_selected_lm_res.Rdat")
-
-hog_phylo_reg_res_anno <- hog_phylo_reg_res %>%
-  left_join(all_res_gene_zf_hs) %>%
-  dplyr::select(entrezgene,entrezgene_hs,pvalue,coefficient,FDRPval_busted,hog) %>%
-  mutate(FDRPval_corr = p.adjust(pvalue,method="BH")) %>%
-  arrange(FDRPval_corr)
-
-
-
-
-
-
-
-
-#Read in VIPs, BIPs and PIPs, see if any enrichment (or different PC scores) for different categories.
+#See if any enrichment (or different PC scores) for different categories.
 #Explore loadings
-hog_anno <- read_csv("05_output_bird_mammal_comparison_results/hog_alt_annotation.csv") %>%
-  mutate(hog = as.character(hog)) %>%
-  left_join(n_sig_sp) %>%
-  mutate(hog = paste0("hog_",hog))
 
 hog_geneids <- all_res_gene_zf_hs %>%
   dplyr::select(hog,entrezgene,entrezgene_zf,entrezgene_hs) %>%
   distinct(hog,.keep_all = TRUE) %>%
   mutate(hog = paste0("hog_",hog))
 
+#Annotate loadings with hog gene IDs
 loading_anno <- hog_geneids %>%
-  left_join(hog_anno) %>%
-  left_join(loading) %>%
-  replace_na(list(vip = FALSE, bip = FALSE, pip = FALSE))
-
-#Is there a difference in the distribution of PC scores for VIPs vs. non VIPs, etc?
-loading_anno %>%
-  ggplot(aes(PC1, fill=vip)) +
-  geom_density(alpha=.5)
-loading_anno %>%
-  ggplot(aes(PC1, fill=bip)) +
-  geom_density(alpha=.5)
-loading_anno %>%
-  ggplot(aes(PC1, fill=pip)) +
-  geom_density(alpha=.5)
+  left_join(loading)
 
 
-
-
-
-
-PC1_loading_geneList <- loading_anno %>%
-  filter(!is.na(entrezgene)) %>%
-  filter(hog %in% paste0("hog_",sel_hogs)) %>%
-  #filter(n_sel > 5) %>%
-  pull(PC1)
-names(PC1_loading_geneList) <-loading_anno %>%
-  filter(!is.na(entrezgene)) %>%
-  filter(hog %in% paste0("hog_",sel_hogs)) %>%
-  #filter(n_sel > 5) %>%
-  pull(entrezgene)
-PC1_loading_geneList <- sort(PC1_loading_geneList,decreasing = TRUE)
-
-pc1_kk <- gseKEGG(geneList = PC1_loading_geneList,organism = "gga", keyType = "ncbi-geneid", nPerm = 1000, pvalueCutoff = 1,minGSSize = 10)
-pc1_kk_summary <- summary(pc1_kk)
-
-
-
-PC2_loading_geneList <- loading_anno$PC2
-names(PC2_loading_geneList) <- loading_anno$entrezgene
-PC2_loading_geneList <- sort(PC2_loading_geneList,decreasing = TRUE)
-
-pc2_kk <- gseKEGG(geneList = PC2_loading_geneList,organism = "gga", keyType = "ncbi-geneid", nPerm = 1000, pvalueCutoff = 1)
-summary(pc2_kk)
-
-PC3_loading_geneList <- loading_anno$PC3
-names(PC3_loading_geneList) <- loading_anno$entrezgene
-PC3_loading_geneList <- sort(PC3_loading_geneList,decreasing = TRUE)
-
-pc3_kk <- gseKEGG(geneList = PC3_loading_geneList,organism = "gga", keyType = "ncbi-geneid", nPerm = 1000, pvalueCutoff = 1)
-summary(pc3_kk)
-
-
-#Enrichment in 5% tails of distribution?
-
-all_tested <- loading_anno %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(entrezgene)
-
-PC1_high_most_sig <- loading_anno %>%
-  arrange(desc(PC1)) %>%
-  head(n=0.1*nrow(loading_anno)) %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(entrezgene)
-PC1_low_most_sig <- loading_anno %>%
-  arrange(PC1) %>%
-  head(n=0.1*nrow(loading_anno)) %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(entrezgene)
-PC1_most_sig <- c(PC1_high_most_sig,PC1_low_most_sig)
-
-PC1_high_k <- enrichKEGG(PC1_high_most_sig,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.2,universe=all_tested,keyType="ncbi-geneid")
-summary(PC1_high_k)
-PC1_low_k <- enrichKEGG(PC1_low_most_sig,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.2,universe=all_tested,keyType="ncbi-geneid")
-summary(PC1_low_k)
-
-
-PC2_high_most_sig <- loading_anno %>%
-  arrange(desc(PC2)) %>%
-  head(n=0.25*nrow(loading_anno)) %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(entrezgene)
-PC2_low_most_sig <- loading_anno %>%
-  arrange(PC2) %>%
-  head(n=0.25*nrow(loading_anno)) %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(entrezgene)
-PC2_most_sig <- c(PC2_high_most_sig,PC2_low_most_sig)
-
-PC2_high_k <- enrichKEGG(PC2_high_most_sig,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.2,universe=all_tested,keyType="ncbi-geneid")
-summary(PC2_high_k)
-PC2_low_k <- enrichKEGG(PC2_low_most_sig,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.2,universe=all_tested,keyType="ncbi-geneid")
-summary(PC2_low_k)
-
-
-PC3_high_most_sig <- loading_anno %>%
-  arrange(desc(PC3)) %>%
-  head(n=0.25*nrow(loading_anno)) %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(entrezgene)
-PC3_low_most_sig <- loading_anno %>%
-  arrange(PC3) %>%
-  head(n=0.25*nrow(loading_anno)) %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(entrezgene)
-PC3_most_sig <- c(PC3_high_most_sig,PC3_low_most_sig)
-
-PC3_high_k <- enrichKEGG(PC3_high_most_sig,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.2,universe=all_tested,keyType="ncbi-geneid")
-summary(PC3_high_k)
-PC3_low_k <- enrichKEGG(PC3_low_most_sig,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.2,universe=all_tested,keyType="ncbi-geneid")
-summary(PC3_low_k)
-
-
-
-
-
-#GSE with correlation
-
-Corr_loading_geneList <- hog_phylo_reg_res_anno %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(coefficient)
-names(Corr_loading_geneList) <-hog_phylo_reg_res_anno %>%
-  filter(!is.na(entrezgene)) %>%
-  pull(entrezgene)
-Corr_loading_geneList <- sort(Corr_loading_geneList,decreasing = TRUE)
-
-corr_kk <- gseKEGG(geneList = Corr_loading_geneList,organism = "gga", keyType = "ncbi-geneid", nPerm = 1000, pvalueCutoff = 1,minGSSize = 10)
-test <- summary(corr_kk)
-
-#Significant pvalues?
-corr_sig <- hog_phylo_reg_res_anno %>%
-  filter(FDRPval_corr < 0.05) %>%
-  pull(entrezgene)
-all_tested <- hog_phylo_reg_res_anno %>%
-  pull(entrezgene)
-Corr_k <- enrichKEGG(corr_sig,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.2,universe=all_tested,keyType="ncbi-geneid")
-summary(Corr_k)
-
-
-
-#GSE with spearman correlation
+#Gene set enrichement with spearman correlation results, only test genes that are selected in at least 5 species to avoid biases associated with genes that are present in only a few species.
 
 Corr_loading_geneList <- hog_phylo_spear_res_anno %>%
   filter(!is.na(entrezgene)) %>%
   filter(n_sel > 5) %>%
+  distinct(entrezgene,.keep_all=T) %>%
   pull(rho)
 names(Corr_loading_geneList) <-hog_phylo_spear_res_anno %>%
   filter(!is.na(entrezgene)) %>%
   filter(n_sel > 5) %>%
+  distinct(entrezgene,.keep_all=T) %>%
   pull(entrezgene)
 Corr_loading_geneList <- sort(Corr_loading_geneList,decreasing = TRUE)
 
 corr_kk <- gseKEGG(geneList = Corr_loading_geneList,organism = "gga", keyType = "ncbi-geneid", nPerm = 1000, pvalueCutoff = 1,minGSSize = 10,by="DOSE")
-corr_kk_summary <- summary(corr_kk)
+corr_kk_summary <- as.data.frame(corr_kk)
+write_csv(corr_kk_summary,"06_output_cluster_by_species/bodymass_PC1_spearman_GSE_results_nocutoff.csv")
 
-#Significant pvalues?
+corr_kk_summary %>%
+  filter(qvalues<0.3) %>%
+  write_csv("06_output_cluster_by_species/bodymass_PC1_spearman_GSE_results_q<0.3.csv")
+
+#Are the results robust to looking at enrichment of genes with significant p-values? Cellular senescence results are
 corr_sig <- hog_phylo_spear_res_anno %>%
   filter(FDRPval_spear < 0.2) %>%
   filter(!is.na(entrezgene)) %>%
   filter(n_sel > 5) %>%
+  distinct(entrezgene) %>%
   pull(entrezgene)
 all_tested <- hog_phylo_spear_res_anno %>%
   filter(n_sel > 5) %>%
   filter(!is.na(entrezgene)) %>%
+  distinct(entrezgene) %>%
   pull(entrezgene)
 Corr_k <- enrichKEGG(corr_sig,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested,keyType="ncbi-geneid")
-spear_enrich <- summary(Corr_k)
+spear_enrich <- as.data.frame(Corr_k)
 spear_enrich[1:5,]
 
-#Plot cellular senescence pathway
-library(pathview)
-rho <- hog_phylo_spear_res_anno %>% pull(rho)
-names(rho) <- hog_phylo_spear_res_anno %>% pull(entrezgene)
-pv.out.04218 <- pathview(gene.data=rho,pathway.id="04218",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(rho)),kegg.native=T,key.pos="topright",out.suffix="Cellular_senescence_rho")
+spear_enrich %>%
+  write_csv("06_output_cluster_by_species/bodymass_PC1_spearman_enrich_results_nocutoff.csv")
 
+spear_enrich %>%
+  filter(qvalue<0.2) %>%
+  write_csv("06_output_cluster_by_species/bodymass_PC1_spearman_enrich_results_q<0.2.csv")
 
-
-###############
-#Combine with pathway enrichment results:
-library(ggridges)
-
-chicken_path_res <- read_csv("04_output_pathway_results/chicken_genetree_pathwayres_nocutoffs.csv")
-chicken_path_res_ids <- chicken_path_res %>%
-  filter(qvalue < 0.2) %>%
-  separate_rows(geneID) %>%
-  dplyr::select(Description,entrezgene = geneID)
-
-sig_categories <- chicken_path_res_ids %>%
-  distinct(Description) %>%
-  pull(Description)
-
-all_sig_gene <- all_res_gene_ncbi %>%
-  filter(!is.na(FDRPval_m1m2) & !is.na(FDRPval_m2m2a) & !is.na(FDRPval_m7m8) & !is.na(FDRPval_m8m8a) & !is.na(FDRPval_busted)) %>%
-  filter(!is.na(entrezgene)) %>%
-  filter(FDRPval_m1m2 < 0.05 & FDRPval_m2m2a < 0.05 & FDRPval_m7m8 < 0.05 & FDRPval_m8m8a < 0.05 & FDRPval_busted < 0.05) %>%
-  mutate(Description = "Sig genes") %>%
-  dplyr::select(Description,entrezgene) %>%
-  as.tibble
-
-chicken_path_genes <- read_csv("04_output_pathway_results/chicken_genetree_allgenestested_pathwayres_nocutoffs.csv") %>%
-  separate_rows(geneID) %>%
-  dplyr::select(Description,entrezgene = geneID) 
-
-all_geneIDs <- loading_anno %>%
-  filter(!is.na(entrezgene)) %>%
-  mutate(Description = "All genes") %>%
-  dplyr::select(Description, entrezgene)
-
-chicken_path_res_ids %>%
-  bind_rows(all_geneIDs) %>%
-  bind_rows(all_sig_gene) %>%
-  left_join(loading_anno) %>%
-  ggplot(aes(PC1,Description)) +
-  geom_density_ridges()
-
-chicken_path_genes %>%
-  bind_rows(all_geneIDs) %>%
-  filter(Description %in% sig_categories | Description == "All genes") %>%
-  left_join(loading_anno) %>%
-  ggplot(aes(PC1,Description)) +
-  geom_density_ridges()
-
-
-loadings_classes <- chicken_path_res_ids %>%
-  bind_rows(all_geneIDs) %>%
-  bind_rows(all_sig_gene) %>%
-  left_join(loading_anno)
-
-
-
-all_genes_PC1 <- loadings_classes[loadings_classes$Description == "All genes", "PC1"] %>% pull
-toll_PC1 <- loadings_classes[loadings_classes$Description == "Toll-like receptor signaling pathway", "PC1"] %>% pull
-wilcox.test(all_genes_PC1,toll_PC1)
-
-all_genes_PC1 <- loadings_classes[loadings_classes$Description == "All genes", "PC1"] %>% pull
-hr_PC1 <- loadings_classes[loadings_classes$Description == "Homologous recombination", "PC1"] %>% pull
-wilcox.test(all_genes_PC1,hr_PC1)
-
-
-all_sig_genes_PC1 <- loadings_classes[loadings_classes$Description == "All genes" & loadings_classes$entrezgene %in% all_sig_gene, "PC2"] %>% pull
-rand_1 <- sample(all_sig_genes_PC1, size=20, replace=F)
-wilcox.test(all_genes_PC1,rand_1)
-mean(all_sig_genes_PC1)
-mean(rand_1)
-mean(all_genes_PC1)
-
-
-
+pathview(gene.data=corr_sig,pathway.id=spear_enrich$ID,species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="pathway_PC1_enrich")

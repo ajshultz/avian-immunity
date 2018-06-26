@@ -3,6 +3,7 @@ library(DOSE)
 library(clusterProfiler)
 library(pathview)
 library(forcats)
+library(cowplot)
 
 setwd("~/Dropbox/BirdImmuneGeneEvolution/")
 
@@ -42,60 +43,87 @@ all_sig_sp <- all_res_sp_ncbi %>%
 #######################################################################################################################
 
 #Chicken pathway enrichemnt tests:
-#Gene trees, p<0.05, q<0.05
+#Gene trees, q<0.1
 all_genes_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_gene,keyType="ncbi-geneid")
 
-write_csv(summary(all_genes_k), path="04_output_pathway_results/chicken_genetree_pathwayres_p1_q0.1.csv")
+write_csv(as.data.frame(all_genes_k), path="04_output_pathway_results/chicken_genetree_pathwayres_p1_q0.1.csv")
 
-summary(all_genes_k)
+as.data.frame(all_genes_k)
 
 #Gene trees, all results, no cutoff
 all_genes_nocutoff_k <- enrichKEGG(all_sig_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
 
-write_csv(summary(all_genes_nocutoff_k), path="04_output_pathway_results/chicken_genetree_pathwayres_nocutoffs.csv")
+write_csv(as.data.frame(all_genes_nocutoff_k), path="04_output_pathway_results/chicken_genetree_pathwayres_nocutoffs.csv")
 
 #Which genes are present in each pathway for this dataset?
 all_genes_tested_nocutoff_k <- enrichKEGG(all_tested_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
 
-write_csv(summary(all_genes_tested_nocutoff_k), path="04_output_pathway_results/chicken_genetree_allgenestested_pathwayres_nocutoffs.csv")
+write_csv(as.data.frame(all_genes_tested_nocutoff_k), path="04_output_pathway_results/chicken_genetree_allgenestested_pathwayres_nocutoffs.csv")
 
-#Species trees, p<0.05, q<0.05
+#Species trees, q<0.1
 all_sp_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_sp,keyType="ncbi-geneid")
 
-write_csv(summary(all_sp_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_p1_q0.1.csv")
+write_csv(as.data.frame(all_sp_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_p1_q0.1.csv")
 
 #Species trees, all results, no cutoff
 
 all_sp_nocutoff_k <- enrichKEGG(all_sig_sp,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_sp,keyType="ncbi-geneid")
 
-write_csv(summary(all_sp_nocutoff_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_nocutoffs.csv")
+write_csv(as.data.frame(all_sp_nocutoff_k), path="04_output_pathway_results/chicken_speciestree_pathwayres_nocutoffs.csv")
 
 #Plots *Will finalize when we decide what is going in the paper
-dotplot(all_genes_k,showCategory=30, colorBy="qvalue")
+#dotplot(all_genes_k,showCategory=30)
 
 ## count the gene number
-all_genes_k %>%
+all_genes_dotplot <- all_genes_k %>%
   as.tibble %>%
   separate(GeneRatio,into=c("sig_genes_pathway","sig_genes"),remove = F) %>%
-  separate(BgRatio, into=c("bg_sig_genes_pathway","bg_sig_genes"),remove = F) %>%
+  separate(BgRatio, into=c("bg_genes_pathway","bg_genes"),remove = F) %>%
   mutate(GeneRatio = as.numeric(sig_genes_pathway)/as.numeric(sig_genes)) %>%
-  mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_sig_genes_pathway)/as.numeric(bg_sig_genes))) %>%
-  ggplot(aes(x = GeneRatio, y = fct_reorder(Description, GeneRatio))) + 
-  geom_point(aes(size = GeneRatio, color = qvalue)) +
-  theme_bw(base_size = 18) +
+  mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_genes_pathway)/as.numeric(bg_genes))) %>%
+  ggplot(aes(x = enrichment, y = fct_reorder(Description, enrichment))) + 
+  geom_point(aes(size = enrichment, color = qvalue)) +
+  theme_bw(base_size = 12) +
   scale_color_gradient2(high="#332288", mid = "#DDCC77") +
   guides(colour = guide_colorbar(reverse=T)) +
   ylab(NULL) +
-  xlab("genes in pathway / significant genes")
+  xlab("enrichment") +
+  theme(axis.text=element_text(color="black"))
 
-ggsave("04_output_pathway_results/chicken_genetree_qval0.1_dotplot.pdf",width=8,height=7)
+all_genes_dotplot
+ggsave("04_output_pathway_results/chicken_genetree_qval0.1_dotplot.pdf",width=6,height=5)
 
-svg("04_output_pathway_results/chicken_genetree_qval0.1_cnetplot.svg",width=8,height=8)
-cnetplot(all_genes_k,categorySize="pvalue",showCategory=30,fixed=TRUE)
-dev.off()
+
+#Produce cnetplot to show how genes from different pathways overlap
+all_genes_cnet <- cnetplot(all_genes_k,showCategory = 30)
+
+#Need to report how many sig categories to show, so that we can turn off gene names
+n_sig_categories <- 18
+
+#Change gene names to blank spaces
+all_genes_cnet$data$name <- c(as.character(all_genes_cnet$data$name[1:n_sig_categories]),rep("",nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Change colors to desired hex codes
+node_col <- "#332288"
+gene_col <- "#44AA99"
+all_genes_cnet$data$color <- c(rep(node_col,n_sig_categories),rep(gene_col,nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Reduce size of genes a bit
+all_genes_cnet$data$size <- c(rep(-1,n_sig_categories),rep(-4,nrow(all_genes_cnet$data)-n_sig_categories))
+all_genes_cnet$data$size <- c(all_genes_cnet$data$size[1:n_sig_categories],rep(-4,nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Reduce text size
+all_genes_cnet$theme$text$size=10
+
+#Save
+all_genes_cnet
+ggsave("04_output_pathway_results/chicken_genetree_qval0.1_cnetplot.pdf",width=8,height=8)
+
+#Plot both together and save
+plot_grid(all_genes_dotplot,all_genes_cnet,ncol=1,labels=c("A","B"),scale = 0.9)
+ggsave("04_output_pathway_results/chicken_genetree_dotplot_cnet_figure.pdf",width=6,height=10)
 
 #dotplot(all_sp_k)
-#enrichMap(all_sp_k)
 #cnetplot(all_sp_k,categorySize="pvalue",showCategory=10,fixed=TRUE)
 
 
@@ -109,9 +137,15 @@ names(prop_sel.n) <- all_res_gene_ncbi %>%
   filter(prop_sel.n != "NaN") %>%
   pull(entrezgene)
 
+#Create directory for pathway figs if it doesn't exit
+if (!("04_output_pathway_results/pathway_figs" %in% list.dirs())){
+  dir.create("04_output_pathway_results/pathway_figs")
+}
 
-#pv.out.05164 <- pathview(gene.data=prop_sel.n,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(prop_sel.n)),kegg.native=T,key.pos="topright",out.suffix="Influenza_A_propseln")
-#pv.out.05164 <- pathview(gene.data=all_sig_gene,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="Influenza_A_sig_genes")
+#Have to re-set working direcotry so figures are produced in correct location
+setwd("04_output_pathway_results/pathway_figs")
+pv.out.05164 <- pathview(gene.data=prop_sel.n,pathway.id=all_genes_k$ID,species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(prop_sel.n)),kegg.native=T,key.pos="topright",out.suffix="pathway_genetrees_propseln")
+pv.out.05164 <- pathview(gene.data=all_sig_gene,pathway.id=all_genes_k$ID,species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="pathway_genetrees_sig_genes")
 
 
 prop_sel.n <- all_res_sp_ncbi %>%
@@ -124,9 +158,10 @@ names(prop_sel.n) <- all_res_sp_ncbi %>%
   pull(entrezgene)
 
 
-#pv.out.05164 <- pathview(gene.data=prop_sel.n,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(prop_sel.n)),kegg.native=T,key.pos="topright",out.suffix="Influenza_A_propseln_sptree")
-#pv.out.05164 <- pathview(gene.data=all_sig_sp,pathway.id="05164",species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="Influenza_A_sig_genes_sptree")
+pv.out.05164 <- pathview(gene.data=prop_sel.n,pathway.id=all_sp_k$ID,species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",limit=list(gene=max(prop_sel.n)),kegg.native=T,key.pos="topright",out.suffix="pathway_sptrees_propseln")
+pv.out.05164 <- pathview(gene.data=all_sig_sp,pathway.id=all_sp_k$ID,species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="pathway_sptrees_sig_genes")
 
+setwd("../../")
 
 #######################################################################################################################
 #Pathway Enrichment Zebra Finch
@@ -147,10 +182,35 @@ all_sig_sp_zf <- all_res_sp_zf_hs %>%
   distinct(hog,.keep_all=TRUE) %>%
   pull(entrezgene_zf)
 
-all_sp_zf_k <- enrichKEGG(all_sig_sp_zf,organism="tgu",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp_zf,keyType="ncbi-geneid")
+all_sp_zf_k <- enrichKEGG(all_sig_sp_zf,organism="tgu",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_sp_zf,keyType="ncbi-geneid")
 
-write_csv(summary(all_sp_zf_k), path="04_output_pathway_results/zebrafinch_speciestree_pathwayres_p0.05_q0.05.csv")
+write_csv(as.data.frame(all_sp_zf_k), path="04_output_pathway_results/zebrafinch_speciestree_pathwayres_p1_q0.1.csv")
 
+
+#Produce cnetplot to show how genes from different pathways overlap
+all_genes_cnet <- cnetplot(all_sp_zf_k,showCategory = 30)
+
+#Need to report how many sig categories to show, so that we can turn off gene names
+n_sig_categories <- nrow(as.data.frame(all_sp_zf_k))
+
+#Change gene names to blank spaces
+all_genes_cnet$data$name <- c(as.character(all_genes_cnet$data$name[1:n_sig_categories]),rep("",nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Change colors to desired hex codes
+node_col <- "#332288"
+gene_col <- "#44AA99"
+all_genes_cnet$data$color <- c(rep(node_col,n_sig_categories),rep(gene_col,nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Reduce size of genes a bit
+all_genes_cnet$data$size <- c(rep(-1,n_sig_categories),rep(-4,nrow(all_genes_cnet$data)-n_sig_categories))
+all_genes_cnet$data$size <- c(all_genes_cnet$data$size[1:n_sig_categories],rep(-4,nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Reduce text size
+all_genes_cnet$theme$text$size=10
+
+#Save
+all_genes_cnet
+ggsave("04_output_pathway_results/zebrafinch_sptree_qval0.1_cnetplot.pdf",width=8,height=8)
 
 
 #######################################################################################################################
@@ -171,13 +231,33 @@ all_sig_sp_hs <- all_res_sp_zf_hs %>%
   distinct(hog,.keep_all=TRUE) %>%
   pull(entrezgene_hs)
 
-all_sp_hs_k <- enrichKEGG(all_sig_sp_hs,organism="hsa",pvalueCutoff=0.05,pAdjustMethod="BH",qvalueCutoff=0.05,universe=all_tested_sp_hs,keyType="ncbi-geneid")
+all_sp_hs_k <- enrichKEGG(all_sig_sp_hs,organism="hsa",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_sp_hs,keyType="ncbi-geneid")
 
 
-write_csv(summary(all_sp_hs_k), path="04_output_pathway_results/human_speciestree_pathwayres_p0.05_q0.05.csv")
+write_csv(as.data.frame(all_sp_hs_k), path="04_output_pathway_results/human_speciestree_pathwayres_p1_q0.1.csv")
 
+#Produce cnetplot to show how genes from different pathways overlap
+all_genes_cnet <- cnetplot(all_sp_hs_k,showCategory = 30)
 
+#Need to report how many sig categories to show, so that we can turn off gene names
+n_sig_categories <- nrow(as.data.frame(all_sp_hs_k))
 
-#dotplot(all_sp_hs_k,showCategory=20)
-#enrichMap(all_sp_hs_k)
-#cnetplot(all_sp_hs_k,categorySize="pvalue",showCategory=20,fixed=TRUE)
+#Change gene names to blank spaces
+all_genes_cnet$data$name <- c(as.character(all_genes_cnet$data$name[1:n_sig_categories]),rep("",nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Change colors to desired hex codes
+node_col <- "#332288"
+gene_col <- "#44AA99"
+all_genes_cnet$data$color <- c(rep(node_col,n_sig_categories),rep(gene_col,nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Reduce size of genes a bit
+all_genes_cnet$data$size <- c(rep(-1,n_sig_categories),rep(-4,nrow(all_genes_cnet$data)-n_sig_categories))
+all_genes_cnet$data$size <- c(all_genes_cnet$data$size[1:n_sig_categories],rep(-4,nrow(all_genes_cnet$data)-n_sig_categories))
+
+#Reduce text size
+all_genes_cnet$theme$text$size=10
+
+#Save
+all_genes_cnet
+ggsave("04_output_pathway_results/human_sptree_qval0.1_cnetplot.pdf",width=8,height=8)
+

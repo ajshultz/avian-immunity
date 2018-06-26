@@ -58,6 +58,12 @@ all_res_sp_ncbi <- all_res_sp_ncbi %>%
   filter(!is.na(pval_busted) & !is.na(PVal_m1m2) & !is.na(PVal_m2m2a) & !is.na(PVal_m7m8) & !is.na(PVal_m8m8a) & !is.na(total_sel.n)) %>%
   mutate(dataset="species")
 
+#How many genes had results for all tests?
+all_res_gene_ncbi %>%
+  summarize(n())
+all_res_sp_ncbi %>%
+  summarize(n())
+
 #Combine for easy computation
 all_res <- bind_rows(all_res_gene_ncbi,all_res_sp_ncbi)
 
@@ -116,9 +122,6 @@ model_res[,9] <- all_res %>%
   pull
 
 #Clean up table calculate percentages
-model_res %>%
-  mutate_at(paste0("V",3:9,"_perc"),funs(round(. / V2),2), V3:V9)
-
 model_res <- model_res %>%
   mutate_at(vars(V3:V9),funs( perc = . / V2)) %>%
   mutate_at(paste0("V",3:9,"_perc"), funs(sprintf("%0.2f", .))) %>%
@@ -152,24 +155,28 @@ mean_parameters <- all_res %>%
 
 #Plot distribution of m0 model
 ggplot(all_res,aes(Omega_m0)) +
-  geom_histogram(bins=40, fill = "lightblue") +
-  facet_grid(~dataset)
+  geom_histogram(bins=40, fill = "#44AA99") +
+  facet_grid(~dataset) +
+  theme_bw()
 ggsave("03_output_general_stats/m0_Omega_distribution.pdf",width=10, height=6)
 
 #Compare the number of significant branches with signficant vs. not significant under BUSTED with Mann-Whitney U test
 all_res %>%  
   mutate(sig_busted = FDRPval_busted < 0.05) %>%
   group_by(dataset) %>%
-  do(w=wilcox.test(prop_sel.n~sig_busted), data=., paired=FALSE)
+  do(w=wilcox.test(prop_sel.n~sig_busted,data=., paired=FALSE)) %>%
+  unlist
+  summarize(dataset,Wilcox = w$p.value, W = w$statistic.W )
   
 all_res_gene_ncbi <- all_res_gene_ncbi %>%  
   mutate(sig_busted = FDRPval_busted < 0.05)
 
-wilcox.test(all_res_gene_ncbi$prop_sel.n~all_res_gene_ncbi$sig_busted, paired=FALSE)
+unlist(wilcox.test(all_res_gene_ncbi$prop_sel.n~all_res_gene_ncbi$sig_busted, paired=FALSE))
 
 #Make a figure
 ggplot(all_res_gene_ncbi,aes(sig_busted,prop_sel.n)) +
-  geom_violin(fill="lightblue") +
+  geom_violin(fill="#44AA99") +
   xlab("significant with busted (FDR q<0.05)") +
-  ylab("prop significant lineages")
+  ylab("prop significant lineages") +
+  theme_bw()
 ggsave("03_output_general_stats/busted_bsrel_genetree_sign_prop.pdf",height=5,width=5)

@@ -257,13 +257,13 @@ infect_agents <- all_res_birds_clean %>%
   pull
 
 #Colors to use:
-general_colors_plasmodium <- c("white",rgb(27,158,119,225,maxColorValue = 225))
+general_colors_plasmodium <- c("white","#88CCEE")
 names(general_colors_plasmodium) <- c("not significant","significant")
 
-general_colors_virus <- c("white",rgb(117,112,179,225,maxColorValue = 225))
+general_colors_virus <- c("white","#44AA99")
 names(general_colors_virus) <- c("not significant","significant")
 
-general_colors_bacterium<- c("white",rgb(217,95,2,225,maxColorValue = 225))
+general_colors_bacterium<- c("white","#332288")
 names(general_colors_bacterium) <- c("not significant","significant")
 
 color_list <- list(general_colors_plasmodium,general_colors_virus,general_colors_bacterium)
@@ -381,7 +381,17 @@ birds_legend <- all_res_birds_clean %>%
 plot_grid(infect_plots[["birnaviridae"]],infect_plots[["influenza"]],infect_plots[["paramyxovirus"]],infect_plots[["west_nile_virus"]],infect_plots[["ecoli"]],infect_plots[["mycoplasma"]],infect_plots[["plasmodium"]],birds_legend,ncol=4)
 ggsave("08_output_transcriptomics/bird_transcriptome_sig_figure.pdf",height=7,width=11)
 
+#Clean up actual results table:
 
+infect_res_table_clean <- infect_res_table %>%
+  as.tibble %>%
+  mutate(estimate=round(as.numeric(estimate),digits=2),
+         std.error=round(as.numeric(std.error),digits=2),
+         z.value=round(as.numeric(z.value),digits=2),
+         p.value=round(as.numeric(p.value),digits=4),
+         prop_sig=round(as.numeric(prop_sig),digits=2))
+
+write_csv(infect_res_table_clean,"08_output_transcriptomics/bird_transcriptome_sig_results_table.csv")
 
 #########################################################################################################
 ################### Mammals Transcriptome dataset cleanup #############################################
@@ -423,16 +433,21 @@ all_res_mammals_singles <- all_res_mammals %>%
 
 #Now each specific dataset is cleaned up, but we need to clean up bioprojects that had more than 1 condition (timepoints, etc.)
 
-#First, write a csv of how many conditiosn are in each bioproject (note that this was the base used to create the input for bioproject_cond_count_anno)
+#First, write a csv of how many conditions are in each bioproject (note that this was the base used to create the input for bioproject_cond_count_anno)
 bioprojects_n_conditions_mammals <- all_res_mammals_singles %>%
   group_by(bioproj_number,bioproject) %>%
-  distinct(bioproj) %>%
+  distinct(bioproject) %>%
   group_by(bioproj_number) %>%
   summarize(n_cond = n()) %>%
   left_join(bioproject_info %>% distinct(bioproj_number,.keep_all=TRUE),by="bioproj_number") %>%
   write_csv("08_output_transcriptomics/bioproject_cond_count.csv")
 
 #Write some basic stats for each bioproject + conditions
+#Create a tibble with useful info for each bioproject
+bioproject_info <- all_res_mammals %>%
+  distinct(bioproject,.keep_all=T) %>%
+  dplyr::select(bioproject,bioproj_number,infect,infect_type_specific,infect_type_virus_type,infect_type_general,clade)
+
 all_res_mammals %>%
   filter(!is.na(sig)) %>%
   group_by(bioproject) %>%
@@ -454,16 +469,16 @@ all_res_mammals_clean <- bind_rows(bioproject_res_clean_mammals)
 save(all_res_mammals_clean,file = "08_output_transcriptomics/mammals_birds_clean_transcriptomic_results.Rdat")
 
 
-#Read in significance results for bird and mammal combined dataset
+#Read in BUSTED significance results for bird and mammal combined dataset
 imm <- read_csv("05_output_bird_mammal_comparison_results/bird_mammal_combined_dataset.csv")
 
 #Combine transcriptome and selection results, clean up only relevant columns, remove any genes without mammal_q, bird_q,or beta_sig
 trans_imm <- all_res_mammals_clean %>%
   left_join(imm,by=c("ensembl_id_hs" = "ensembl_gene_id_hs")) %>%
-  dplyr::select(ensembl_id_hs,entrezgene_hs,bioproj_number,infect,species,infect_type_specific:sig,hog,sig_all,bip,vip,pip,mammal_logp,bird_logp,mammal_q,bird_q) %>%
+  dplyr::select(ensembl_id_hs,entrezgene_hs,bioproj_number,infect,species,infect_type_specific:sig,hog,sig_all,mammal_logp,bird_logp,mammal_q,bird_q) %>%
   filter(!is.na(mammal_q), !is.na(bird_q), !is.na(beta_sig)) 
 
-#For getting bird and mammal up-reg and down-reg sig results, use qval<0.01
+#For getting bird and mammal up-reg and down-reg sig results, use qval<0.05
 qval <- 0.05
 #Specify which genes are sig in birds, mammals, or birds and mammals given a qvalue
 trans_imm<- trans_imm %>%
@@ -588,6 +603,18 @@ birds_legend <- trans_imm %>%
 
 plot_grid(infect_plots[["birnaviridae"]],infect_plots[["influenza"]],infect_plots[["paramyxovirus"]],infect_plots[["west_nile_virus"]],infect_plots[["ecoli"]],infect_plots[["mycoplasma"]],infect_plots[["plasmodium"]],birds_legend,ncol=4)
 ggsave("08_output_transcriptomics/bird_transcriptome_sig_figure_busted_q0.05_mammal_genes.pdf",height=7,width=11)
+
+#Write table of results
+infect_res_table_clean <- infect_res_table %>%
+  as.tibble %>%
+  mutate(estimate=round(as.numeric(estimate),digits=2),
+         std.error=round(as.numeric(std.error),digits=2),
+         z.value=round(as.numeric(z.value),digits=2),
+         p.value=round(as.numeric(p.value),digits=4),
+         prop_sig=round(as.numeric(prop_sig),digits=2))
+
+write_csv(infect_res_table_clean,"08_output_transcriptomics/bird_transcriptome_sig_results_table_mammal_bird_gene_set.csv")
+
 
 
 ###########################################################################################################
@@ -717,8 +744,8 @@ trans_imm %>%
 #Infectious agents tested in both clades
 infect_agents_both <- c("influenza","west_nile_virus", "ecoli", "mycoplasma","plasmodium")
 
-trans_res_table <- matrix(nrow=length(infect_agents_both)*2,ncol=7)
-colnames(trans_res_table) <- c("infect_agent", "trans_response", "n", "p.value", "conf.int1", "conf.int2", "estimate.odds.ratio")
+trans_res_table <- matrix(nrow=length(infect_agents_both)*2,ncol=8)
+colnames(trans_res_table) <- c("infect_agent", "trans_response", "n", "n.expected", "p.value", "conf.int1", "conf.int2", "estimate.odds.ratio")
 
 trans_res_list <- list()
 
@@ -771,12 +798,21 @@ for (i in 1:length(infect_agents_both)){
     filter(down_reg_both != 1) %>%
     with(.,table(up_reg_mammals,up_reg_birds)) %>%
     .[2,2]
-  trans_res_table[trans_start,4:7] <- infect_res %>%
+  trans_res_table[trans_start,5:8] <- infect_res %>%
     filter(down_reg_both != 1) %>%
     with(.,table(up_reg_mammals,up_reg_birds)) %>%
     fisher.test %>%
     unlist %>%
     .[1:4]
+  
+  #What is the expected number of genes up regulated in both?
+  trans_res_table[trans_start,4] <- infect_res %>%
+    filter(down_reg_both != 1) %>%
+    with(.,table(up_reg_mammals,up_reg_birds)) %>%
+    chisq.test() %>%
+    .$expected %>%
+    unlist %>%
+    .[2,2]
   
   #Is there a signficant overlap of genes down-regulated in birds and mammals?
   trans_res_table[trans_start+1,2] <- "down"
@@ -784,12 +820,21 @@ for (i in 1:length(infect_agents_both)){
     filter(up_reg_both != 1) %>%
     with(.,table(down_reg_mammals,down_reg_birds)) %>%
     .[2,2]
-  trans_res_table[trans_start+1,4:7] <- infect_res %>%
+  trans_res_table[trans_start+1,5:8] <- infect_res %>%
     filter(up_reg_both != 1) %>%
     with(.,table(down_reg_mammals,down_reg_birds)) %>%
     fisher.test %>%
     unlist %>%
-    .[1:4]  
+    .[1:4]
+  
+  #What is the expected number of genes down regulated in both?
+  trans_res_table[trans_start+1,4] <- infect_res %>%
+    filter(up_reg_both != 1) %>%
+    with(.,table(down_reg_mammals,down_reg_birds)) %>%
+    chisq.test() %>%
+    .$expected %>%
+    unlist %>%
+    .[2,2]
   
   trans_start = trans_start + 2
 }
@@ -797,8 +842,8 @@ for (i in 1:length(infect_agents_both)){
 #Clean up results and save  
 trans_res_table_clean <- trans_res_table %>%
   as.tibble %>%
-  mutate(n_both = as.numeric(n), p.value = round(as.numeric(p.value),digits=5), odds_ratio = round(as.numeric(estimate.odds.ratio),digits=2), upper_bound = round(as.numeric(conf.int2),digits=2), lower_bound = round(as.numeric(conf.int1),digits=2)) %>%
-  dplyr::select(infect_agent,trans_response,n_both,p.value,odds_ratio,lower_bound,upper_bound)
+  mutate(n_both = as.numeric(n), n_both_expected = round(as.numeric(n.expected),digits=1), p.value = round(as.numeric(p.value),digits=5), odds_ratio = round(as.numeric(estimate.odds.ratio),digits=2), upper_bound = round(as.numeric(conf.int2),digits=2), lower_bound = round(as.numeric(conf.int1),digits=2)) %>%
+  dplyr::select(infect_agent,trans_response,n_both,n_both_expected,p.value,odds_ratio,lower_bound,upper_bound)
   
 trans_res_table_clean %>%
   write_csv("08_output_transcriptomics/birds_mammals_transcriptome_odds_ratio_table.csv")
@@ -809,11 +854,11 @@ trans_res_table_clean %>%
   ggplot(aes(infect_agent,odds_ratio,col=trans_response)) +
   geom_point(size=4,position=position_dodge(width=0.9)) +
   geom_linerange(aes(infect_agent,ymin=lower_bound,ymax=upper_bound,col=trans_response),size=2,position=position_dodge(width=0.9)) +
-  geom_hline(aes(yintercept = 1),size=2,linetype="dashed",col="#882255") +
+  geom_hline(aes(yintercept = 1),size=2,linetype="dashed",col="black") +
   xlab("infectious agent") +
   ylab("odds ratio") +
   ylim(0,10) +
-  scale_color_discrete(name="response")
+  scale_color_manual(values=c("up"="#CC6677","down"="#332288"),name="response")
 ggsave("08_output_transcriptomics/birds_mammals_transcriptome_odds_ratio_plot.pdf",width=7,height=4)
   
 #Combine transcriptome results into a single tibble, can group or split by infect_agent column
@@ -881,7 +926,7 @@ start <- 1
 for (i in 1:length(infect_agents_both)){
   
   infect_res_table[start:(start+5),1] <- infect_agents_both[i]
-  infect_res_table[start:(start+5),3] <- nrow(infect_res_list[[i]])
+  infect_res_table[start:(start+5),3] <- nrow(trans_res_list[[i]])
   
   infect_res_table[start:(start+2),2] <- "down"   
   try(infect_res_downreg_test <- trans_res_list[[i]] %>%
@@ -894,7 +939,8 @@ for (i in 1:length(infect_agents_both)){
   try(infect_res_table[start:(start+2),5:8] <- summary(infect_res_downreg_test)$coefficient[2:4,])
 
   infect_res_table[(start+3):(start+5),2] <- "up"   
-  try(infect_res_upreg_test <- infect_res_list[[i]] %>%
+  try(infect_res_upreg_test <- trans_res_list[[i]] %>%
+        left_join(sig_results_simple) %>%
         filter(down_reg_birds != 1) %>%
         glm(sig_birds ~ sig_mammals*up_reg_birds, family="binomial",data=.))
   try(infect_res_table[(start+3):(start+4),4] <- rownames(summary(infect_res_upreg_test)$coefficient[2:3,]))
@@ -923,7 +969,7 @@ trans_imm <- all_res_mammals_clean %>%
   mutate(b_scaled = (b-mean(b,na.rm=TRUE))/sd(b,na.rm=TRUE)) %>%
   ungroup() %>%
   left_join(imm,by=c("ensembl_id_hs" = "ensembl_gene_id_hs")) %>%
-  dplyr::select(ensembl_id_hs,entrezgene_hs,bioproj_number,infect,species,infect_type_specific:sig,b_scaled,hog,sig_all,bip,vip,pip,mammal_logp,bird_logp,mammal_q,bird_q) %>%
+  dplyr::select(ensembl_id_hs,entrezgene_hs,bioproj_number,infect,species,infect_type_specific:sig,b_scaled,hog,sig_all,mammal_logp,bird_logp,mammal_q,bird_q) %>%
   filter(!is.na(mammal_q), !is.na(bird_q), !is.na(beta_sig)) 
 
 #For getting bird and mammal up-reg and down-reg sig results, use qval<0.01
@@ -996,13 +1042,16 @@ sig_trans_infect_type %>%
   #filter(b_m_sig!=0) %>%
   mutate(b_m_harm_mean_b = abs(b_m_harm_mean_b)) %>%
   ggplot(aes(sig_cat,b_m_harm_mean_b,fill=sig_cat)) +
-  geom_boxplot() +
-  coord_cartesian(ylim=c(0,2)) +
-  scale_fill_discrete(guide=F) +
+  geom_boxplot(notch=TRUE,outlier.shape=NA,coef=1) +
+  coord_cartesian(ylim=c(0,2.5)) +
+  scale_fill_manual(guide=F,values=c("birds_and_mammals"="#CC6677", "birds_only"="#DDCC77", "not_sig"="#88CCEE")) +
+  scale_x_discrete(labels=c("birds_and_mammals"="birds and mammals","birds_only"="birds only","not_sig"="not significant")) +
   theme(axis.text.x=element_text(angle=90))+
   ylab("abs(harmonic mean beta)")+
   xlab("significance category") +
-  facet_grid(.~infect_type_virus_type)
+  facet_grid(.~infect_type_virus_type) +
+  theme(axis.text.x=element_text(angle=45,vjust=1,hjust=1),
+        strip.background=element_rect(fill="white"))
 ggsave("08_output_transcriptomics/birds_mammals_trans_sig_boxplot.pdf",width=10,height=6)
 
 #Use a Mann-Whitney U-test to see if means are different between sig in birds and mammals and not sig
@@ -1062,784 +1111,3 @@ all_trans_sig_res <- bind_rows(both_vs_not_trans_sig_res,birds_only_vs_not_trans
 
 all_trans_sig_res %>%
   write_csv("08_output_transcriptomics/birds_mammals_trans_sig_both_wilcox_test_results.csv")
-
-
-
-
-#Are birds more likely to have a sig result if sig results?
-sig_trans_infect_type_birds <- trans_infect_type %>%
-  filter(clade=="birds") %>%
-  filter(infect_type_virus_type %in% infect_agents_both) %>%
-  left_join(sig_results_simple)
-
-sig_trans_infect_type_birds %>%
-  mutate(max_b_scaled=max_b_scaled*beta_sig) %>%
-  filter(max_b_scaled!=0) %>%
-  ggplot(aes(max_b_scaled,fill=factor(sig_birds))) +
-  geom_density(alpha=0.5) +
-  facet_wrap(~infect_type_virus_type)
-
-sig_trans_infect_type_birds %>%
-  #filter(sig!=0) %>%
-  ggplot(aes(x=factor(sig_birds),y=max_b_scaled,fill=factor(sig_birds))) +
-  geom_boxplot() +
-  coord_cartesian(ylim=c(0,2)) +
-  scale_fill_discrete(guide=F) +
-  #theme(axis.text.x=element_text(angle=90))+
-  ylab("abs(harmonic mean beta)")+
-  xlab("significance category") +
-  facet_grid(.~infect_type_virus_type)
-
-###
-
-
-
-
-
-
-
-
-
-
-
-
-################ Need to translate to human gene IDs 
-#First, need to get rid of extra info on end of target_ids, and create new column of sig given beta > 1 or -1
-
-all_res_anno <- all_res %>%
-  separate(target_id,into=c("ensembl_id","drop"),fill = "right") %>%
-  dplyr::select(-drop) %>%
-  left_join(trans_table,by=c("ensembl_id" = "ensembl_gene_id")) %>%
-  mutate(ensembl_id_hs = if_else(species=="HOM",ensembl_id,hsapiens_homolog_ensembl_gene)) %>%
-  mutate(beta_TF = if_else(abs(b)>=1,1,0), beta_sig = sig*beta_TF)
-
-save(all_res_anno,file = "08_output_transcriptomics/all_transcriptomic_results_human_ensembl_ids.Rdat")
-
-#How many ensembl_ids don't have a human match?
-n_matches <- all_res_anno %>%
-  group_by(bioproject,species) %>%
-  summarize(n_transcripts = n(),n_no_match = sum(is.na(ensembl_id_hs)))
-
-#Further split up bioproject for easier analysis
-all_res_anno <- all_res_anno %>%
-  separate(bioproject, into=c("bioproj_number"), extra="drop",remove = F,sep = "-") %>%
-  left_join(infect_info,by=c("infect","species"))
-
-#Create a tibble with useful info for each bioproject
-bioproject_info <- all_res_anno %>%
-  distinct(bioproject,.keep_all=T) %>%
-  dplyr::select(bioproject,bioproj_number,infect,infect_type_specific,infect_type_virus_type,infect_type_general,clade)
-
-all_res_anno %>%
-  filter(!is.na(sig)) %>%
-  group_by(bioproject) %>%
-  summarize(n_up = sum(sig==1),n_up_beta = sum(beta_sig==1), n_down = sum(sig==-1), n_down_beta = sum(beta_sig==-1), n_notsig = sum(sig==0), n_notsig_beta = sum(beta_sig ==0),n_ensID_hs = sum(!is.na(ensembl_id_hs))) %>%
-  left_join(bioproject_info, by="bioproject") %>%
-  write_csv("08_output_transcriptomics/bioproject_basic_info.csv")
-
-
-
-
-#Read in significance results
-imm <- read_csv("05_output_bird_mammal_comparison_results/bird_mammal_combined_dataset.csv")
-
-qvals <- c(0.1,0.01,0.001,0.0001)
-qval <- 0.01
-
-
-
-
-
-
-
-
-
-
-
-
-##########Test first for infection_type_general, then infect_type_virus_type. Loop through and calc similar up-regulated, down-regulated, and just significant. Test for relationships (logistic regression) for significant genes in birds given sig genes in mammals and transcriptome status, and vica versa for birds and mammals.
-general_types <- all_res_anno %>%
-  distinct(infect_type_general) %>%
-  pull
-
-trans_tests <- c("sig_notsig","up_reg","down_reg")
-
-mammals_general_types_res <- matrix(nrow=length(general_types)*length(trans_tests)*8,ncol=8)
-birds_general_types_res <- matrix(nrow=length(general_types)*length(trans_tests)*8,ncol=8)
-
-
-start <- 1
-
-for (i in 1:length(general_types)){
-all_res_anno_test <- all_res_anno %>%
-  filter(infect_type_general == general_types[i])
-
-  for (j in 1:length(trans_tests)){
-    mammals_general_types_res[start:(start+7),1] <- general_types[i]
-    birds_general_types_res[start:(start+7),1] <- general_types[i]
-    mammals_general_types_res[start:(start+7),2] <- trans_tests[j]
-    birds_general_types_res[start:(start+7),2] <- trans_tests[j]
-  #Get sig counts for each gene for both birds and mammals
-    ens_sig_birds_mammals_test <- all_res_anno_test %>%
-      filter(!is.na(ensembl_id_hs)) %>%
-      mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-      group_by(ensembl_id_hs,clade) %>%
-      summarize(n_sig_notsig = sum(sig_notsig), n_up_reg = sum(up_reg), n_down_reg = sum(down_reg)) %>%
-      dplyr::select(ensembl_id_hs,clade,paste0("n_",trans_tests[j])) %>%
-      spread(clade,paste0("n_",trans_tests[j]))
-
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-    imm_test <- imm %>%
-      left_join(ens_sig_birds_mammals_test, by=c("ensembl_gene_id_hs"="ensembl_id_hs")) %>%
-      filter(!is.na(birds), !is.na(mammals)) %>%
-      mutate(status = case_when(
-        birds>0 & mammals==0 ~ "birds_only",
-        birds==0 & mammals>0 ~ "mammals_only",
-        birds>0 & mammals>0 ~ "birds_and_mammals",
-        birds==0 & mammals==0 ~ "neither"),
-        status_mammals = if_else(mammals>0,TRUE,FALSE),
-        status_birds = if_else(birds>0,TRUE,FALSE))
-    imm_test %>%
-      with(.,table(status))
-
-    gl_res_mammals <- glm(sig_mammals ~ sig_birds*status, family="binomial",data=imm_test)
-    #summary(gl_res_mammals)
-    mammals_general_types_res[start:(start+6),3] <- "sig_mammals"
-    mammals_general_types_res[start:(start+6),4] <- rownames(summary(gl_res_mammals)$coefficient[2:8,])
-    mammals_general_types_res[start:(start+6),5:8] <- summary(gl_res_mammals)$coefficient[2:8,]
-    
-    #Test if sig transcriptome results correspond to sig selection results
-    gl_res_mammals_only <- glm(sig_mammals ~ status_mammals, family="binomial",data=imm_test)
-    mammals_general_types_res[(start+7),4] <- rownames(summary(gl_res_mammals_only)$coefficient)[2]
-    mammals_general_types_res[(start+7),5:8] <- summary(gl_res_mammals_only)$coefficient[2,]
-    
-
-    gl_res_birds <- glm(sig_birds ~ sig_mammals*status, family="binomial",data=imm_test)
-    #summary(gl_res_birds)
-    birds_general_types_res[start:(start+6),3] <- "sig_birds"
-    birds_general_types_res[start:(start+6),4] <- rownames(summary(gl_res_birds)$coefficient[2:8,])
-    birds_general_types_res[start:(start+6),5:8] <- summary(gl_res_birds)$coefficient[2:8,]
-    #Test if sig transcriptome results correspond to sig selection results
-    gl_res_birds_only <- glm(sig_birds ~ status_birds, family="binomial",data=imm_test)
-    birds_general_types_res[(start+7),4] <- rownames(summary(gl_res_birds_only)$coefficient)[2]
-    birds_general_types_res[(start+7),5:8] <- summary(gl_res_birds_only)$coefficient[2,]
-    
-
-    start <- start + 8
-
-    }
-  }
-
-colnames(mammals_general_types_res) <- c("agent_class","trans_comparison","dep_var","parameter","estimate","std.error","z.value","p.value")
-colnames(birds_general_types_res) <- c("agent_class","trans_comparison","dep_var","parameter","estimate","std.error","z.value","p.value")
-
-#Clean up, select relevant columns
-mammals_general_types_res_clean <- mammals_general_types_res %>%
-  as.tibble %>%
-  mutate(p.value=round(as.numeric(p.value),digits = 4),
-         estimate=round(as.double(estimate),digits=2),
-         std.error=round(as.numeric(std.error),digits=2),
-         z.value=round(as.numeric(z.value),digits=2)) %>%
-  dplyr::select(agent_class,trans_comparison,parameter,estimate,std.error,z.value,p.value)
-birds_general_types_res_clean <- birds_general_types_res %>%
-  as.tibble %>%
-  mutate(p.value=round(as.numeric(p.value),digits = 4),
-         estimate=round(as.double(estimate),digits=2),
-         std.error=round(as.numeric(std.error),digits=2),
-         z.value=round(as.numeric(z.value),digits=2)) %>%
-  dplyr::select(agent_class,trans_comparison,parameter,estimate,std.error,z.value,p.value)
-
-write_csv(mammals_general_types_res_clean,"08_output_transcriptomics/general_class_mammal_logistic_regressions.csv")
-write_csv(birds_general_types_res_clean,"08_output_transcriptomics/general_class_bird_logistic_regressions.csv")
-
-
-
-
-
-
-
-
-
-##########Next, test for infect_type_virus_type. Loop through and calc similar up-regulated, down-regulated, and just significant. Test for relationships (logistic regression) for significant genes in birds given sig genes in mammals and transcriptome status, and vica versa for birds and mammals.
-virus_types <- all_res_anno %>%
-  distinct(infect_type_virus_type) %>%
-  pull
-
-trans_tests <- c("sig_notsig","up_reg","down_reg")
-
-mammals_virus_types_res <- matrix(nrow=length(virus_types)*length(trans_tests)*8,ncol=8)
-birds_virus_types_res <- matrix(nrow=length(virus_types)*length(trans_tests)*8,ncol=8)
-
-
-start <- 1
-
-for (i in 1:length(virus_types)){
-  all_res_anno_test <- all_res_anno %>%
-    filter(infect_type_virus_type == virus_types[i])
-  
-  for (j in 1:length(trans_tests)){
-    mammals_virus_types_res[start:(start+7),1] <- virus_types[i]
-    birds_virus_types_res[start:(start+7),1] <- virus_types[i]
-    mammals_virus_types_res[start:(start+7),2] <- trans_tests[j]
-    birds_virus_types_res[start:(start+7),2] <- trans_tests[j]
-    #Get sig counts for each gene for both birds and mammals
-    ens_sig_birds_mammals_test <- all_res_anno_test %>%
-      filter(!is.na(ensembl_id_hs)) %>%
-      mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-      group_by(ensembl_id_hs,clade) %>%
-      summarize(n_sig_notsig = sum(sig_notsig), n_up_reg = sum(up_reg), n_down_reg = sum(down_reg)) %>%
-      dplyr::select(ensembl_id_hs,clade,paste0("n_",trans_tests[j])) %>%
-      spread(clade,paste0("n_",trans_tests[j]))
-    
-    
-    #Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-    imm_test <- imm %>%
-      left_join(ens_sig_birds_mammals_test, by=c("ensembl_gene_id_hs"="ensembl_id_hs")) %>%
-      filter(!is.na(birds), !is.na(mammals)) %>%
-      mutate(status = case_when(
-        birds>0 & mammals==0 ~ "birds_only",
-        birds==0 & mammals>0 ~ "mammals_only",
-        birds>0 & mammals>0 ~ "birds_and_mammals",
-        birds==0 & mammals==0 ~ "neither"),
-        status_mammals = if_else(mammals>0,TRUE,FALSE),
-        status_birds = if_else(birds>0,TRUE,FALSE))
-    imm_test %>%
-      with(.,table(status))
-    
-    gl_res_mammals <- glm(sig_mammals ~ sig_birds*status, family="binomial",data=imm_test)
-    #summary(gl_res_mammals)
-    mammals_virus_types_res[start:(start+6),3] <- "sig_mammals"
-    try(mammals_virus_types_res[start:(start+6),4] <- rownames(summary(gl_res_mammals)$coefficient[2:8,]))
-    try(mammals_virus_types_res[start:(start+6),5:8] <- summary(gl_res_mammals)$coefficient[2:8,])
-    
-    #Test if sig transcriptome results correspond to sig selection results
-    gl_res_mammals_only <- glm(sig_mammals ~ status_mammals, family="binomial",data=imm_test)
-    try(mammals_virus_types_res[(start+7),4] <- rownames(summary(gl_res_mammals_only)$coefficient)[2])
-    try(mammals_virus_types_res[(start+7),5:8] <- summary(gl_res_mammals_only)$coefficient[2,])
-    
-    
-    gl_res_birds <- glm(sig_birds ~ sig_mammals*status, family="binomial",data=imm_test)
-    #summary(gl_res_birds)
-    birds_virus_types_res[start:(start+6),3] <- "sig_birds"
-    try(birds_virus_types_res[start:(start+6),4] <- rownames(summary(gl_res_birds)$coefficient[2:8,]))
-    try(birds_virus_types_res[start:(start+6),5:8] <- summary(gl_res_birds)$coefficient[2:8,])
-    #Test if sig transcriptome results correspond to sig selection results
-    gl_res_birds_only <- glm(sig_birds ~ status_birds, family="binomial",data=imm_test)
-    try(birds_virus_types_res[(start+7),4] <- rownames(summary(gl_res_birds_only)$coefficient)[2])
-    try(birds_virus_types_res[(start+7),5:8] <- summary(gl_res_birds_only)$coefficient[2,])
-    
-    
-    start <- start + 8
-    
-  }
-}
-
-colnames(mammals_virus_types_res) <- c("agent_class","trans_comparison","dep_var","parameter","estimate","std.error","z.value","p.value")
-colnames(birds_virus_types_res) <- c("agent_class","trans_comparison","dep_var","parameter","estimate","std.error","z.value","p.value")
-
-#Clean up, select relevant columns
-mammals_virus_types_res_clean <- mammals_virus_types_res %>%
-  as.tibble %>%
-  mutate(p.value=round(as.numeric(p.value),digits = 4),
-         estimate=round(as.double(estimate),digits=2),
-         std.error=round(as.numeric(std.error),digits=2),
-         z.value=round(as.numeric(z.value),digits=2)) %>%
-  dplyr::select(agent_class,trans_comparison,parameter,estimate,std.error,z.value,p.value)
-birds_virus_types_res_clean <- birds_virus_types_res %>%
-  as.tibble %>%
-  mutate(p.value=round(as.numeric(p.value),digits = 4),
-         estimate=round(as.double(estimate),digits=2),
-         std.error=round(as.numeric(std.error),digits=2),
-         z.value=round(as.numeric(z.value),digits=2)) %>%
-  dplyr::select(agent_class,trans_comparison,parameter,estimate,std.error,z.value,p.value)
-
-write_csv(mammals_virus_types_res_clean,"08_output_transcriptomics/virus_class_mammal_logistic_regressions.csv")
-write_csv(birds_virus_types_res_clean,"08_output_transcriptomics/virus_class_bird_logistic_regressions.csv")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#First look at plasmodium - this is simple, no time points, just a single bioproject for each
-all_res_anno_plas <- all_res_anno %>%
-  filter(infect_type_general == "plasmodium")
-
-#Get sig counts for each gene for both birds and mammals
-ens_sig_birds_mammals_plas <- all_res_anno_plas %>%
-  filter(!is.na(ensembl_id_hs)) %>%
-  mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-  group_by(ensembl_id_hs,clade) %>%
-  summarize(n_sig = sum(up_reg)) %>%
-  spread(clade,n_sig)
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-ens_sig_birds_mammals_plas %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) %>%
-  with(.,table(status))
-
-imm_plas <- imm %>%
-  left_join(ens_sig_birds_mammals_plas, by=c("ensembl_gene_id_hs"="ensembl_id_hs")) %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) 
-
-imm_plas %>%
-  ggplot(aes(status,fill=sig_birds_mammals)) +
-  geom_bar(position="fill")
-imm_plas %>%
-  mutate(birds_reg = if_else(birds > 0,TRUE,FALSE)) %>%
-  ggplot(aes(sig_birds,fill=birds_reg)) +
-  geom_bar(position="fill")
-ggsave("08_output_transcriptomics/birds_plasmodium_sig_regulated.png",height=6,width=4)
-imm_plas %>%
-  mutate(mammals_reg = if_else(mammals > 0,TRUE,FALSE)) %>%
-  ggplot(aes(sig_mammals,fill=mammals_reg)) +
-  geom_bar(position="fill")
-ggsave("08_output_transcriptomics/mammals_plasmodium_down_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/mammals_plasmodium_up_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/mammals_plasmodium_sig_regulated.png",height=6,width=4)
-
-
-#######################Viruses
-#Next look at viruses- this is simple, no time points, just a single bioproject for each
-all_res_anno_virus <- all_res_anno %>%
-  filter(infect_type_general == "virus")
-
-#Get sig counts for each gene for both birds and mammals
-ens_sig_birds_mammals_virus <- all_res_anno_virus %>%
-  filter(!is.na(ensembl_id_hs)) %>%
-  mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-  group_by(ensembl_id_hs,clade) %>%
-  summarize(n_sig = sum(down_reg)) %>%
-  spread(clade,n_sig)
-
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-imm_virus <- imm %>%
-  left_join(ens_sig_birds_mammals_virus, by=c("ensembl_gene_id_hs"="ensembl_id_hs")) %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) 
-imm_virus %>%
-  with(.,table(status))
-
-imm_virus %>%
-  ggplot(aes(status,fill=sig_birds_mammals)) +
-  geom_bar(position="fill")
-imm_virus %>%
-  mutate(birds_reg = if_else(birds > 0,TRUE,FALSE)) %>%
-  ggplot(aes(sig_birds,fill=birds_reg)) +
-  geom_bar(position="fill")
-ggsave("08_output_transcriptomics/birds_virus_sig_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/birds_virus_up_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/birds_virus_down_regulated.png",height=6,width=4)
-imm_virus %>%
-  mutate(mammals_reg = if_else(mammals > 0,TRUE,FALSE)) %>%
-  ggplot(aes(sig_mammals,fill=mammals_reg)) +
-  geom_bar(position="fill")
-ggsave("08_output_transcriptomics/mammals_virus_sig_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/mammals_virus_up_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/mammals_virus_down_regulated.png",height=6,width=4)
-
-
-
-
-
-########Bacteria
-#next bacteria- this is simple, no time points, just a single bioproject for each
-all_res_anno_bacteria <- all_res_anno %>%
-  filter(infect_type_general == "bacterium")
-
-#Get sig counts for each gene for both birds and mammals
-ens_sig_birds_mammals_bacteria <- all_res_anno_bacteria %>%
-  filter(!is.na(ensembl_id_hs)) %>%
-  mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-  group_by(ensembl_id_hs,clade) %>%
-  summarize(n_sig = sum(sig_notsig)) %>%
-  spread(clade,n_sig)
-
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-imm_bacteria <- imm %>%
-  left_join(ens_sig_birds_mammals_bacteria, by=c("ensembl_gene_id_hs"="ensembl_id_hs")) %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) 
-imm_bacteria %>%
-  with(.,table(status))
-
-imm_bacteria %>%
-  ggplot(aes(status,fill=sig_birds_mammals)) +
-  geom_bar(position="fill")
-imm_bacteria %>%
-  mutate(birds_reg = if_else(birds > 0,TRUE,FALSE)) %>%
-  ggplot(aes(sig_birds,fill=birds_reg)) +
-  geom_bar(position="fill")
-ggsave("08_output_transcriptomics/birds_bacteria_sig_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/birds_bacteria_up_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/birds_bacteria_down_regulated.png",height=6,width=4)
-imm_bacteria %>%
-  mutate(mammals_reg = if_else(mammals > 0,TRUE,FALSE)) %>%
-  ggplot(aes(sig_mammals,fill=mammals_reg)) +
-  geom_bar(position="fill")
-ggsave("08_output_transcriptomics/mammals_bacteria_sig_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/mammals_bacteria_up_regulated.png",height=6,width=4)
-ggsave("08_output_transcriptomics/mammals_bacteria_down_regulated.png",height=6,width=4)
-
-
-
-
-
-
-
-########################Influenza
-#First look at plasmodium - this is simple, no time points, just a single bioproject for each
-all_res_anno_influenza <- all_res_anno %>%
-  filter(infect_type_virus_type == "influenza")
-
-#Get sig counts for each gene for both birds and mammals
-ens_sig_birds_mammals_influenza <- all_res_anno_influenza %>%
-  filter(!is.na(ensembl_id_hs)) %>%
-  mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-  group_by(ensembl_id_hs,clade) %>%
-  summarize(n_sig = sum(sig_notsig)) %>%
-  spread(clade,n_sig)
-
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-imm_influenza <- imm %>%
-  left_join(ens_sig_birds_mammals_influenza, by=c("ensembl_gene_id_hs"="ensembl_id_hs")) %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) 
-imm_influenza %>%
-  with(.,table(status))
-
-imm_influenza %>%
-  ggplot(aes(status,fill=sig_birds_mammals)) +
-  geom_bar(position="fill")
-imm_influenza %>%
-  mutate(birds_reg = if_else(birds > 0,TRUE,FALSE)) %>%
-  ggplot(aes(sig_birds,fill=birds_reg)) +
-  geom_bar(position="fill")
-imm_influenza %>%
-  mutate(mammals_reg = if_else(mammals > 0,TRUE,FALSE)) %>%
-  ggplot(aes(sig_mammals,fill=mammals_reg)) +
-  geom_bar(position="fill")
-
-gl_res_mammals <- glm(sig_mammals ~ sig_birds*status, family="binomial",data=imm_influenza)
-summary(gl_res_mammals)
-
-gl_res_birds <- glm(sig_birds ~ sig_mammals*status, family="binomial",data=imm_influenza)
-summary(gl_res_birds)
-
-
-
-
-###################Mycoplasma
-all_res_anno_mycoplasma <- all_res_anno %>%
-  filter(infect_type_virus_type == "mycoplasma")
-
-#Get sig counts for each gene for both birds and mammals
-ens_sig_birds_mammals_mycoplasma <- all_res_anno_mycoplasma %>%
-  filter(!is.na(ensembl_id_hs)) %>%
-  mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-  group_by(ensembl_id_hs,clade) %>%
-  summarize(n_sig = sum(sig_notsig)) %>%
-  spread(clade,n_sig)
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-ens_sig_birds_mammals_mycoplasma %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) %>%
-  with(.,table(status))
-
-
-
-
-#############West Nile Virus
-all_res_anno_wnv <- all_res_anno %>%
-  filter(infect_type_virus_type == "west_nile_virus")
-
-#Get sig counts for each gene for both birds and mammals
-ens_sig_birds_mammals_wnv <- all_res_anno_wnv %>%
-  filter(!is.na(ensembl_id_hs)) %>%
-  mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-  group_by(ensembl_id_hs,clade) %>%
-  summarize(n_sig = sum(sig_notsig)) %>%
-  spread(clade,n_sig)
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-ens_sig_birds_mammals_wnv %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) %>%
-  with(.,table(status))
-
-
-
-
-
-##########paramyxovirus #Prob not useful
-all_res_anno_paramyxo<- all_res_anno %>%
-  filter(infect_type_virus_type == "paramyxovirus")
-
-#Get sig counts for each gene for both birds and mammals
-ens_sig_birds_mammals_paramyxo <- all_res_anno_paramyxo %>%
-  filter(!is.na(ensembl_id_hs)) %>%
-  mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-  group_by(ensembl_id_hs,clade) %>%
-  summarize(n_sig = sum(sig_notsig)) %>%
-  spread(clade,n_sig)
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-ens_sig_birds_mammals_paramyxo %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) %>%
-  with(.,table(status))
-
-
-
-
-
-
-
-############Ecoli
-all_res_anno_ecoli<- all_res_anno %>%
-  filter(infect_type_virus_type == "ecoli")
-
-#Get sig counts for each gene for both birds and mammals
-ens_sig_birds_mammals_ecoli <- all_res_anno_ecoli %>%
-  filter(!is.na(ensembl_id_hs)) %>%
-  mutate(sig_notsig = if_else(sig != 0, 1,0),up_reg = if_else(sig==1,1,0),down_reg = if_else(sig ==-1,1,0)) %>%
-  group_by(ensembl_id_hs,clade) %>%
-  summarize(n_sig = sum(sig_notsig)) %>%
-  spread(clade,n_sig))
-
-#Filter out missing genes in birds, make a table with counts in each category to get a sense of the data
-ens_sig_birds_mammals_ecoli %>%
-  filter(!is.na(birds), !is.na(mammals)) %>%
-  mutate(status = case_when(
-    birds>0 & mammals==0 ~ "birds_only",
-    birds==0 & mammals>0 ~ "mammals_only",
-    birds>0 & mammals>0 ~ "birds_and_mammals",
-    birds==0 & mammals==0 ~ "neither")) %>%
-  with(.,table(status))
-
-
-
-
-
-
-
-
-
-
-
-
-##########Bird cleaning for conference
-#First, create a clean dataset of those bioprojects that only have one condition:
-single_bioprojects <- bioprojects_n_conditions %>%
-  filter(n_cond == 1) %>%
-  pull(bioproj_number)
-
-all_res_birds_singles_clean <- all_res_birds_singles %>%
-  filter(bioproj_number %in% single_bioprojects)
-
-#Now, for those that have only two conditions (e.g. different organs). Want to include genes that are significant in either condition 
-double_bioprojects <- bioprojects_n_conditions %>%
-  filter(n_cond == 2) %>%
-  pull(bioproj_number)
-
-
-
-#Create tibble with condensed values
-sig_values_birds_doubles_fixed <- all_res_birds_singles %>%
-  filter(bioproj_number %in% double_bioprojects) %>%
-  group_by(bioproj_number,ensembl_id_gg) %>%
-  summarize(beta_sig = sum(beta_sig), sig = sum(sig))  %>%
-  mutate(singles_beta_sig = case_when(beta_sig >= 1 ~ 1,
-                                      beta_sig == 0 ~ 0,
-                                      beta_sig <= -1 ~ -1),
-         singles_sig = case_when(sig >= 1 ~ 1,
-                                 sig == 0 ~ 0,
-                                 sig <= -1 ~ -1)) %>%
-  dplyr::select(-beta_sig,-sig) %>%
-  ungroup()
-
-#Combine back with all_res_birds, remove duplicates and drop old columns
-all_res_birds_doubles_clean <-all_res_birds_singles %>%
-  filter(bioproj_number %in% double_bioprojects) %>%
-  left_join(sig_values_birds_doubles_fixed,by=c("bioproj_number","ensembl_id_gg")) %>%
-  dplyr::select(-beta_sig,-sig) %>%
-  rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
-  distinct(bioproj_number,ensembl_id_gg,.keep_all=T)
-
-
-
-#Next we will fix all of the bioprojects that have 4 different time points/conditions. We will do the same procedure as above, but consider a gene significantly up or down regulated if it is in at least 2 conditions.
-quad_bioprojects <- bioprojects_n_conditions %>%
-  filter(n_cond == 4) %>%
-  pull(bioproj_number)
-
-#Combine back with all_res_birds, remove duplicates and drop old columns
-sig_values_birds_quad_fixed <- all_res_birds_singles %>%
-  filter(bioproj_number %in% quad_bioprojects) %>%
-  group_by(bioproj_number,ensembl_id_gg) %>%
-  summarize(beta_sig = sum(beta_sig), sig = sum(sig))  %>%
-  mutate(singles_beta_sig = case_when(beta_sig >= 2 ~ 1,
-                                      beta_sig < 2 & beta_sig >-2 ~ 0,
-                                      beta_sig <= -2 ~ -1),
-         singles_sig = case_when(sig >= 2 ~ 1,
-                                 sig < 2 & sig >-2 ~ 0,
-                                 sig <= -2 ~ -1)) %>%
-  dplyr::select(-beta_sig,-sig) %>%
-  ungroup()
-
-#Combine back with all_res_birds, remove duplicates and drop old columns
-all_res_birds_quad_clean <-all_res_birds_singles %>%
-  filter(bioproj_number %in% quad_bioprojects) %>%
-  left_join(sig_values_birds_quad_fixed,by=c("bioproj_number","ensembl_id_gg")) %>%
-  dplyr::select(-beta_sig,-sig) %>%
-  rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
-  distinct(bioproj_number,ensembl_id_gg,.keep_all=T)
-
-
-
-#Next we will fix all of the bioprojects that have 6 different time points/conditions. We will do the same procedure as above, but consider a gene significantly up or down regulated if it is in at least 3 conditions.
-six_bioprojects <- bioprojects_n_conditions %>%
-  filter(n_cond == 6) %>%
-  pull(bioproj_number)
-
-#First check, are there any genes that are upregulated in one condition and down in the other?
-all_res_birds_singles %>%
-  filter(bioproj_number %in% six_bioprojects) %>%
-  group_by(bioproj_number,ensembl_id_gg) %>%
-  summarize(beta_sig = sum(beta_sig), sig = sum(sig),beta_sig_abs = sum(abs(beta_sig)),sig_abs = sum(abs(sig))) %>%
-  filter(abs(beta_sig) != beta_sig_abs | abs(sig) != sig_abs)
-#No, so we don't have to worry about that
-
-sig_values_birds_six_fixed <- all_res_birds_singles %>%
-  filter(bioproj_number %in% six_bioprojects) %>%
-  group_by(bioproj_number,ensembl_id_gg) %>%
-  summarize(beta_sig = sum(beta_sig), sig = sum(sig))  %>%
-  mutate(singles_beta_sig = case_when(beta_sig >= 3 ~ 1,
-                                      beta_sig < 3 & beta_sig >-3 ~ 0,
-                                      beta_sig <= -3 ~ -1),
-         singles_sig = case_when(sig >= 3 ~ 1,
-                                 sig < 3 & sig >-3 ~ 0,
-                                 sig <= -3 ~ -1)) %>%
-  dplyr::select(-beta_sig,-sig) %>%
-  ungroup()
-
-#Combine back with all_res_birds, remove duplicates and drop old columns
-all_res_birds_six_clean <-all_res_birds_singles %>%
-  filter(bioproj_number %in% six_bioprojects) %>%
-  left_join(sig_values_birds_six_fixed,by=c("bioproj_number","ensembl_id_gg")) %>%
-  dplyr::select(-beta_sig,-sig) %>%
-  rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
-  distinct(bioproj_number,ensembl_id_gg,.keep_all=T)
-
-
-
-#Next we will fix all of the bioprojects that have 8 different time points/conditions. We will do the same procedure as above, but consider a gene significantly up or down regulated if it is in at least 2 conditions. Here I am being more lenient, because many of the treatments had very few significantly differently expressed genes.
-eight_bioprojects <- bioprojects_n_conditions %>%
-  filter(n_cond == 8) %>%
-  pull(bioproj_number)
-
-#First check, are there any genes that are upregulated in one condition and down in the other?
-all_res_birds_singles %>%
-  filter(bioproj_number %in% eight_bioprojects) %>%
-  group_by(bioproj_number,ensembl_id_gg) %>%
-  summarize(beta_sig = sum(beta_sig), sig = sum(sig),beta_sig_abs = sum(abs(beta_sig)),sig_abs = sum(abs(sig))) %>%
-  filter(abs(beta_sig) != beta_sig_abs | abs(sig) != sig_abs)
-#No, so we don't have to worry about that
-
-sig_values_birds_eight_fixed <- all_res_birds_singles %>%
-  filter(bioproj_number %in% eight_bioprojects) %>%
-  group_by(bioproj_number,ensembl_id_gg) %>%
-  summarize(beta_sig = sum(beta_sig), sig = sum(sig)) %>%
-  mutate(singles_beta_sig = case_when(beta_sig >= 2 ~ 1,
-                                      beta_sig < 2 & beta_sig >=-1 ~ 0,
-                                      (beta_sig <= -2) ~ -1),
-         singles_sig = case_when(sig >= 2 ~ 1,
-                                 sig < 2 & sig >-2 ~ 0,
-                                 sig <= -2 ~ -1)) %>%
-  dplyr::select(-beta_sig,-sig) %>%
-  ungroup()
-
-#Combine back with all_res_birds, remove duplicates and drop old columns
-all_res_birds_eight_clean <-all_res_birds_singles %>%
-  filter(bioproj_number %in% eight_bioprojects) %>%
-  left_join(sig_values_birds_eight_fixed,by=c("bioproj_number","ensembl_id_gg")) %>%
-  dplyr::select(-beta_sig,-sig) %>%
-  rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
-  distinct(bioproj_number,ensembl_id_gg,.keep_all=T)
-
-#Combine all results into a single, clean tibble
-all_res_birds_clean <- bind_rows(all_res_birds_singles_clean,
-                                 all_res_birds_doubles_clean,
-                                 all_res_birds_quad_clean,
-                                 all_res_birds_six_clean,
-                                 all_res_birds_eight_clean) %>%
-  dplyr::select(-bioproject)
-
-
-
-
-
-
