@@ -27,7 +27,7 @@ all_res_gene_ncbi %>%
   filter(!is.na(entrezgene_zf)) %>%
   summarize(n())
 
-#How many hogs could be assigned to both a chicken or zebra finch gene ID?
+#How many hogs could be assigned to both a chicken and zebra finch gene ID?
 all_res_gene_ncbi %>%
   filter(!is.na(entrezgene), !is.na(entrezgene_zf)) %>%
   summarize(n())
@@ -153,6 +153,19 @@ mean_parameters <- all_res %>%
             mean_omega_BUSTED = mean(omega_busted),
             mean_prop_sites_BUSTED = mean(weight_busted))
 
+#Test whether or not the two disributions are the same, 
+sink("03_output_general_stats/m0_dataset_comparison_ks_test_results.txt")
+all_res %>%
+  dplyr::select(hog,dataset, Omega_m0) %>%
+  spread(dataset,Omega_m0) %>%
+  do(w=ks.test(.$gene,.$species,data=.)) %>%
+  unlist
+all_res %>%
+  group_by(dataset) %>%
+  filter(!is.na(Omega_m0)) %>%
+  summarize(ngenes=n(),mean_omega_m0=mean(Omega_m0), median_omega_m0=median(Omega_m0), sd_omega_m0=sd(Omega_m0))
+sink()
+
 #Plot distribution of m0 model
 ggplot(all_res,aes(Omega_m0)) +
   geom_histogram(bins=40, fill = "#44AA99") +
@@ -160,13 +173,40 @@ ggplot(all_res,aes(Omega_m0)) +
   theme_bw()
 ggsave("03_output_general_stats/m0_Omega_distribution.pdf",width=10, height=6)
 
+
+all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="yes",false="no")) %>%
+ggplot(aes(sig_all,Omega_m0)) +
+  geom_violin(fill = "#44AA99") +
+  facet_grid(~dataset) +
+  theme_bw() +
+  xlab("under selection with all tests") +
+  ylab(expression("m0 model "*omega))
+ggsave("03_output_general_stats/m0_Omega_distribution_by_sigall.pdf",width=10,height=6)
+
+sink("03_output_general_stats/m0_sig_dataset_comparison_mann_whit_test_results.txt")
+all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
+  dplyr::select(hog,dataset,sig_all, Omega_m0) %>%
+  group_by(dataset) %>%
+  do(w=wilcox.test(Omega_m0~sig_all,data=.,paired=FALSE)) %>%
+  unlist
+all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
+  group_by(dataset,sig_all) %>%
+  filter(!is.na(Omega_m0)) %>%
+  summarize(ngenes=n(),mean_omega_m0=mean(Omega_m0), median_omega_m0=median(Omega_m0), sd_omega_m0=sd(Omega_m0))
+sink()
+  
+
 #Compare the number of significant branches with signficant vs. not significant under BUSTED with Mann-Whitney U test
+sink("03_output_general_stats/busted_sig_branches_wilcox_test_results.txt")
 all_res %>%  
   mutate(sig_busted = FDRPval_busted < 0.05) %>%
-  group_by(dataset) %>%
+  dplyr::group_by(dataset) %>%
   do(w=wilcox.test(prop_sel.n~sig_busted,data=., paired=FALSE)) %>%
   unlist
-  summarize(dataset,Wilcox = w$p.value, W = w$statistic.W )
+sink()
   
 all_res_gene_ncbi <- all_res_gene_ncbi %>%  
   mutate(sig_busted = FDRPval_busted < 0.05)
