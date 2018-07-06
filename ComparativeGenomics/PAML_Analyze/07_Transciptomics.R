@@ -7,7 +7,7 @@ library(cowplot)
 imm <- read_csv("05_output_bird_mammal_comparison_results/bird_mammal_combined_dataset.csv")
 
 #Read in list of files
-sleuth_files <- list.files("08_inputs_transcriptomics/sleuth/")
+sleuth_files <- list.files("07_inputs_transcriptomics/sleuth/")
 
 #Grab bioproject IDs from "prep" file
 bioproj <- grep(sleuth_files,pattern=".prep",value = TRUE) %>%
@@ -20,13 +20,13 @@ results_files <- grep(sleuth_files,pattern="results.tsv",value = TRUE)
 
 all_res_list <- list()
 for (i in 1:length(results_files)){
-  all_res_list[[i]] <- read_tsv(paste0("08_inputs_transcriptomics/sleuth/",results_files[i]),col_types = c("cddddddcccic"))
+  all_res_list[[i]] <- read_tsv(paste0("07_inputs_transcriptomics/sleuth/",results_files[i]),col_types = c("cddddddcccic"))
 }
 
 all_res <- bind_rows(all_res_list)
 
 #Need to translate all gene IDs to human ensembl gene IDs
-species_info <- read_csv("08_inputs_transcriptomics/species_info.csv")
+species_info <- read_csv("07_inputs_transcriptomics/species_info.csv")
 
 ensembl = useMart("ensembl")
 
@@ -92,11 +92,10 @@ translation_list[[index]] <- translation_list[[index]] %>%
 #Create table to use for all species
 trans_table <- bind_rows(translation_list)
 
-write_csv(trans_table,"08_output_transcriptomics/all_species_translation_table.csv")
-
+write_csv(trans_table,"07_output_transcriptomics/all_species_translation_table.csv")
 
 #Read in infectious agent info
-infect_info <- read_csv("08_inputs_transcriptomics/infect_info_table.csv")
+infect_info <- read_csv("07_inputs_transcriptomics/infect_info_table.csv")
 
 
 #########################################################################################################
@@ -215,7 +214,7 @@ collapse_n_matches <- function(dataset,bioproject_number,n_matches,ensembl_id_co
 }
 
 #Read in dtafraem with information on condition requirements to clean up data
-bioprojects_cond_anno <- read_csv("08_inputs_transcriptomics/bioproject_cond_count_anno.csv")
+bioprojects_cond_anno <- read_csv("07_inputs_transcriptomics/bioproject_cond_count_anno.csv")
 
 bioprojects_cond_anno_birds <- bioprojects_cond_anno %>%
   filter(clade == "birds") %>%
@@ -230,7 +229,7 @@ for (i in 1:nrow(bioprojects_cond_anno_birds)){
 
 all_res_birds_clean <- bind_rows(bioproject_res_clean)
 
-save(all_res_birds_clean,file = "08_output_transcriptomics/birds_clean_transcriptomic_results.Rdat")
+save(all_res_birds_clean,file = "07_output_transcriptomics/birds_clean_transcriptomic_results.Rdat")
 
 
 #What are the bioprojects by infections?
@@ -379,7 +378,7 @@ birds_legend <- all_res_birds_clean %>%
         title = element_blank())
 
 plot_grid(infect_plots[["birnaviridae"]],infect_plots[["influenza"]],infect_plots[["paramyxovirus"]],infect_plots[["west_nile_virus"]],infect_plots[["ecoli"]],infect_plots[["mycoplasma"]],infect_plots[["plasmodium"]],birds_legend,ncol=4)
-ggsave("08_output_transcriptomics/bird_transcriptome_sig_figure.pdf",height=7,width=11)
+ggsave("07_output_transcriptomics/bird_transcriptome_sig_figure.pdf",height=7,width=11)
 
 #Clean up actual results table:
 
@@ -391,7 +390,7 @@ infect_res_table_clean <- infect_res_table %>%
          p.value=round(as.numeric(p.value),digits=4),
          prop_sig=round(as.numeric(prop_sig),digits=2))
 
-write_csv(infect_res_table_clean,"08_output_transcriptomics/bird_transcriptome_sig_results_table.csv")
+write_csv(infect_res_table_clean,"07_output_transcriptomics/bird_transcriptome_sig_results_table.csv")
 
 #########################################################################################################
 ################### Mammals Transcriptome dataset cleanup #############################################
@@ -440,7 +439,7 @@ bioprojects_n_conditions_mammals <- all_res_mammals_singles %>%
   group_by(bioproj_number) %>%
   summarize(n_cond = n()) %>%
   left_join(bioproject_info %>% distinct(bioproj_number,.keep_all=TRUE),by="bioproj_number") %>%
-  write_csv("08_output_transcriptomics/bioproject_cond_count.csv")
+  write_csv("07_output_transcriptomics/bioproject_cond_count.csv")
 
 #Write some basic stats for each bioproject + conditions
 #Create a tibble with useful info for each bioproject
@@ -454,7 +453,7 @@ all_res_mammals %>%
   summarize(n_up = sum(sig==1),n_up_beta = sum(beta_sig==1), n_down = sum(sig==-1), n_down_beta = sum(beta_sig==-1), n_notsig = sum(sig==0), n_notsig_beta = sum(beta_sig ==0),n_ensID_hs = sum(!is.na(ensembl_id_hs))) %>%
   separate(bioproject,into=c("bioproj_number"),sep = "-",remove=F,extra = "drop") %>%
   left_join(bioproject_info %>% distinct(bioproj_number,.keep_all=TRUE), by="bioproj_number") %>%
-  write_csv("08_output_transcriptomics/bioproject_basic_info.csv")
+  write_csv("07_output_transcriptomics/bioproject_basic_info.csv")
 
 #Now clean up each bioproject according to criteria in bioproject_cond_anno
 bioproject_res_clean_mammals <- list()
@@ -466,7 +465,7 @@ for (i in 1:nrow(bioprojects_cond_anno)){
 
 all_res_mammals_clean <- bind_rows(bioproject_res_clean_mammals)
 
-save(all_res_mammals_clean,file = "08_output_transcriptomics/mammals_birds_clean_transcriptomic_results.Rdat")
+save(all_res_mammals_clean,file = "07_output_transcriptomics/mammals_birds_clean_transcriptomic_results.Rdat")
 
 
 #Read in BUSTED significance results for bird and mammal combined dataset
@@ -490,7 +489,7 @@ trans_imm<- trans_imm %>%
 trans_imm %>%
   group_by(clade,infect_type_specific,bioproj_number) %>%
   summarize(n_genes = n(),n_up = sum(beta_sig==1), n_down=sum(beta_sig==-1), nsig_birds=sum(sig_birds), nsig_mammals=sum(sig_mammals), nsig_both=sum(sig_both)) %>%
-  write_csv("08_output_transcriptomics/bioproj_counts_combo_sig_results.csv")
+  write_csv("07_output_transcriptomics/bioproj_counts_combo_sig_results.csv")
 
 #Create tibble of only sig results, for later use
 sig_results_simple <- trans_imm %>%
@@ -602,7 +601,7 @@ birds_legend <- trans_imm %>%
         title = element_blank())
 
 plot_grid(infect_plots[["birnaviridae"]],infect_plots[["influenza"]],infect_plots[["paramyxovirus"]],infect_plots[["west_nile_virus"]],infect_plots[["ecoli"]],infect_plots[["mycoplasma"]],infect_plots[["plasmodium"]],birds_legend,ncol=4)
-ggsave("08_output_transcriptomics/bird_transcriptome_sig_figure_busted_q0.05_mammal_genes.pdf",height=7,width=11)
+ggsave("07_output_transcriptomics/bird_transcriptome_sig_figure_busted_q0.05_mammal_genes.pdf",height=7,width=11)
 
 #Write table of results
 infect_res_table_clean <- infect_res_table %>%
@@ -613,121 +612,9 @@ infect_res_table_clean <- infect_res_table %>%
          p.value=round(as.numeric(p.value),digits=4),
          prop_sig=round(as.numeric(prop_sig),digits=2))
 
-write_csv(infect_res_table_clean,"08_output_transcriptomics/bird_transcriptome_sig_results_table_mammal_bird_gene_set.csv")
+write_csv(infect_res_table_clean,"07_output_transcriptomics/bird_transcriptome_sig_results_table_mammal_bird_gene_set.csv")
 
 
-
-###########################################################################################################
-#Do mammals show the same results?
-#########################################################################################################
-#Get list of infectious agents to iterate through
-infect_agents_mammals <- all_res_mammals_clean %>%
-  filter(clade == "mammals") %>%
-  distinct(infect_type_virus_type) %>%
-  pull
-
-infect_res_table <- matrix(nrow=length(infect_agents_mammals)*3,ncol=8)
-colnames(infect_res_table) <- c("infect_agent", "trans_response", "n", "estimate","std.error","z.value","p.value", "prop_sig")
-
-infect_plots <- list()
-
-start <- 1
-
-for (i in 1:length(infect_agents_mammals)){
-  infect_res_table[(start:(start+2)),1] <- infect_agents_mammals[i]
-  infect_res <- trans_imm %>%
-    filter(clade == "mammals") %>%
-    filter(infect_type_virus_type==infect_agents_mammals[i]) %>%
-    group_by(ensembl_id_hs) %>%
-    summarize(beta_sig_overall = sum(beta_sig), sig_overall = sum(sig)) %>%
-    mutate(beta_sig = case_when(beta_sig_overall >= 1 ~ 1,
-                                beta_sig_overall == 0 ~ 0,
-                                beta_sig_overall <= -1 ~ -1),
-           sig = case_when(sig_overall >= 1 ~ 1,
-                           sig_overall == 0 ~ 0,
-                           sig_overall <= -1 ~ -1)) %>%
-    filter(ensembl_id_hs != "", !is.na(beta_sig)) %>%
-    mutate(expr_sig = if_else(beta_sig !=0,1,0), up_reg = if_else(beta_sig==1,1,0), down_reg = if_else(beta_sig==-1,1,0), not_reg = if_else(beta_sig == 0,1,0)) %>%
-    left_join(sig_results_simple)
-  
-  infect_res_table[start,2] <- "down"   
-  try(infect_res_downreg_test <- infect_res %>%
-        filter(beta_sig != 1) %>%
-        glm(sig_mammals ~ down_reg, family="binomial",data=.))
-  try(infect_res_table[start,4:7] <- summary(infect_res_downreg_test)$coefficient[2,])
-  
-  infect_res_table[start+1,2] <- "none" 
-  infect_res_table[start+1,4:7] <- NA
-  
-  infect_res_table[start+2,2] <- "up"   
-  try(infect_res_upreg_test <- infect_res %>%
-        filter(beta_sig != -1) %>%
-        glm(sig_mammals ~ up_reg, family="binomial",data=.))
-  try(infect_res_table[start+2,4:7] <- summary(infect_res_upreg_test)$coefficient[2,])
-  
-  general_type <- bioproj_infect_info %>%
-    filter(infect_type_virus_type == infect_agents_mammals[i]) %>%
-    distinct(infect_type_general) %>%
-    pull
-  
-  #Calculate proportion significant
-  infect_res_table[start:(start+2),8] <- infect_res %>%
-    with(.,table(sig_mammals,beta_sig)) %>%
-    as.tibble %>%
-    mutate(beta_sig = case_when(beta_sig == -1 ~ "down",
-                                beta_sig == 0 ~ "none",
-                                beta_sig == 1 ~ "up")) %>%
-    group_by(beta_sig) %>%
-    mutate(n_cat = sum(n)) %>%
-    spread(sig_mammals,n) %>%
-    mutate(proportion = `1`/n_cat) %>%
-    pull(proportion)
-  
-  #Pull the number of genes in each transcriptional category
-  infect_res_table[start:(start+2),3] <- infect_res %>%
-    with(.,table(beta_sig)) %>%
-    as.tibble %>%
-    mutate(beta_sig = case_when(beta_sig == -1 ~ "down",
-                                beta_sig == 0 ~ "none",
-                                beta_sig == 1 ~ "up")) %>%
-    pull(n)
-  
-  
-  
-  infect_plots[[i]] <-  infect_res_table[start:(start+2),] %>%
-    as.tibble %>%
-    mutate_at(.vars = 3:8, .fun = as.numeric) %>%
-    mutate(sig_char = case_when(p.value <= 0.0001 ~ "***",
-                                p.value > 0.0001 & p.value <= 0.001 ~ "**",
-                                p.value > 0.001 & p.value <= 0.05 ~ "*",
-                                p.value > 0.05 ~ "")) %>%
-    ggplot(aes(trans_response,prop_sig)) +
-    geom_bar(stat="identity",fill=color_vec[general_type]) +
-    ggtitle(infect_agents_mammals[i]) +
-    ylab("proportion significant") +
-    xlab("transcriptional response") +
-    ylim(0,1.1) +
-    geom_text(aes(trans_response,label=n),nudge_y=0.08,size=4) +
-    geom_text(aes(trans_response,label=sig_char),nudge_y=0.01,size=4)
-  
-  start <- start + 3 
-}
-
-names(infect_plots) <- infect_agents_mammals
-
-mammals_legend <- trans_imm %>%
-  ggplot(aes(infect_type_general,fill=factor(infect_type_general,levels=c("plasmodium","virus","bacterium")))) +
-  geom_bar(position="fill") +
-  scale_fill_manual(values = color_vec,name="pathogen type") +
-  ylab("proportion") +
-  ylim(1,2) +
-  guides(fill=guide_legend(override.aes = list(fill=color_vec))) +
-  theme(line = element_blank(),
-        axis.text = element_blank(),
-        title = element_blank())
-
-plot_grid(infect_plots[["influenza"]],infect_plots[["coronavirus"]],infect_plots[["west_nile_virus"]],infect_plots[["ecoli"]],infect_plots[["mycoplasma"]],infect_plots[["plasmodium"]],mammals_legend,ncol=4)
-ggsave("08_output_transcriptomics/mammal_transcriptome_sig_figure_busted_q0.05_mammal_genes.pdf",height=7,width=11)
 
 #########################################################################################################
 ##################### Are genes up or downregulated in both birds and mammals more likely to be under selection in both clades?
@@ -738,7 +625,7 @@ ggsave("08_output_transcriptomics/mammal_transcriptome_sig_figure_busted_q0.05_m
 trans_imm %>%
   group_by(clade,infect_type_specific,bioproj_number) %>%
   summarize(n_genes = n(),n_up = sum(beta_sig==1), n_down=sum(beta_sig==-1), nsig_birds=sum(sig_birds), nsig_mammals=sum(sig_mammals), nsig_both=sum(sig_both)) %>%
-  write_csv("08_output_transcriptomics/bioproj_counts_combo_sig_q0.01_results.csv")
+  write_csv("07_output_transcriptomics/bioproj_counts_combo_sig_q0.01_results.csv")
 
 
 #Infectious agents tested in both clades
@@ -846,7 +733,7 @@ trans_res_table_clean <- trans_res_table %>%
   dplyr::select(infect_agent,trans_response,n_both,n_both_expected,p.value,odds_ratio,lower_bound,upper_bound)
   
 trans_res_table_clean %>%
-  write_csv("08_output_transcriptomics/birds_mammals_transcriptome_odds_ratio_table.csv")
+  write_csv("07_output_transcriptomics/birds_mammals_transcriptome_odds_ratio_table.csv")
 
 #Odds ratio plot
 trans_res_table_clean %>%
@@ -859,7 +746,7 @@ trans_res_table_clean %>%
   ylab("odds ratio") +
   ylim(0,10) +
   scale_color_manual(values=c("up"="#CC6677","down"="#332288"),name="response")
-ggsave("08_output_transcriptomics/birds_mammals_transcriptome_odds_ratio_plot.pdf",width=7,height=4)
+ggsave("07_output_transcriptomics/birds_mammals_transcriptome_odds_ratio_plot.pdf",width=7,height=4)
   
 #Combine transcriptome results into a single tibble, can group or split by infect_agent column
 trans_res_all <- bind_rows(trans_res_list)
@@ -900,7 +787,7 @@ sig_res_both_all <- bind_rows(sig_res_both_list) %>%
 sig_res_both_all %>%
   left_join(gg_trans_table,by=c("ensembl_id_hs"="hsapiens_homolog_ensembl_gene")) %>%
   dplyr::select(qval:sig_both,external_gene_name,entrezgene,entrezgene_hs) %>%
-  write_csv("08_output_transcriptomics/birds_mammals_sig_both_reg_both_genes.csv")
+  write_csv("07_output_transcriptomics/birds_mammals_sig_both_reg_both_genes.csv")
 
 
 ####################
@@ -932,7 +819,7 @@ for (i in 1:length(infect_agents_both)){
   try(infect_res_downreg_test <- trans_res_list[[i]] %>%
         left_join(sig_results_simple) %>%
         filter(up_reg_both != 1) %>%
-        glm(sig_birds ~ sig_mammals*down_reg_both, family="binomial",data=.))
+        glm(sig_birds ~ sig_mammals*down_reg_birds, family="binomial",data=.))
   try(infect_res_table[start:(start+1),4] <- rownames(summary(infect_res_downreg_test)$coefficient[2:3,]))
   try(infect_res_table[start:(start+1),5:8] <- summary(infect_res_downreg_test)$coefficient[2:3,])
   try(infect_res_table[start:(start+2),4] <- rownames(summary(infect_res_downreg_test)$coefficient[2:4,]))
@@ -956,7 +843,7 @@ infect_res_table %>%
   as.data.frame %>%
   as.tibble %>%
   mutate(estimate = round(as.numeric(as.character(estimate)),digits=2), std.error = round(as.numeric(as.character(std.error)),digits=2), z.value = round(as.numeric(as.character(z.value)),digits=2), p.value = round(as.numeric(as.character(p.value)),digits=5)) %>%
-  write_csv("08_output_transcriptomics/birds_sig_trans_resp_and_sig_mammals_tests_q0.05.csv")
+  write_csv("07_output_transcriptomics/birds_sig_trans_resp_and_sig_mammals_tests_q0.05.csv")
   
 
 
@@ -972,7 +859,7 @@ trans_imm <- all_res_mammals_clean %>%
   dplyr::select(ensembl_id_hs,entrezgene_hs,bioproj_number,infect,species,infect_type_specific:sig,b_scaled,hog,sig_all,mammal_logp,bird_logp,mammal_q,bird_q) %>%
   filter(!is.na(mammal_q), !is.na(bird_q), !is.na(beta_sig)) 
 
-#For getting bird and mammal up-reg and down-reg sig results, use qval<0.01
+#For getting bird and mammal up-reg and down-reg sig results, use qval<0.05
 qval <- 0.05
 #Specify which genes are sig in birds, mammals, or birds and mammals given a qvalue
 trans_imm<- trans_imm %>%
@@ -1052,7 +939,7 @@ sig_trans_infect_type %>%
   facet_grid(.~infect_type_virus_type) +
   theme(axis.text.x=element_text(angle=45,vjust=1,hjust=1),
         strip.background=element_rect(fill="white"))
-ggsave("08_output_transcriptomics/birds_mammals_trans_sig_boxplot.pdf",width=10,height=6)
+ggsave("07_output_transcriptomics/birds_mammals_trans_sig_boxplot.pdf",width=10,height=6)
 
 #Use a Mann-Whitney U-test to see if means are different between sig in birds and mammals and not sig
 both_vs_not_trans_sig_res <- matrix(nrow=length(infect_agents_both),ncol=4)
@@ -1110,4 +997,4 @@ both_vs_birds_only_trans_sig_res <- both_vs_birds_only_trans_sig_res %>%
 all_trans_sig_res <- bind_rows(both_vs_not_trans_sig_res,birds_only_vs_not_trans_sig_res,both_vs_birds_only_trans_sig_res)  
 
 all_trans_sig_res %>%
-  write_csv("08_output_transcriptomics/birds_mammals_trans_sig_both_wilcox_test_results.csv")
+  write_csv("07_output_transcriptomics/birds_mammals_trans_sig_both_wilcox_test_results.csv")
