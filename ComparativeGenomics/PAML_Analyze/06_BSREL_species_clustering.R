@@ -19,20 +19,11 @@ load("02_output_annotated_data/all_res_zf_hs.Rdat")
 #Species clustering
 #######################################################################################################################
 
-#Using the abbreviations for all species, create a matrix of matrix of 1s and 0s for each hog, based on if that species' branch is significant (1), or not significant (1) - using the nominal set of branches. 
-#Disregard all internal nodes.
-#Note that in cases where species was missing from the hog dataset, we automatically assume it is not significant
-
 species_info <- read_csv("06_input_cluster_by_species/sackton_et_al_species_list.csv")
 lifespan_info <- read_csv("06_input_cluster_by_species/bird_lifespan_info.csv")
 
 lifespan_info <- lifespan_info %>%
   dplyr::select(code,lifespan,captivity_or_wild)
-
-#Remove outgroups
-#outgroups <- c("croPor","gavGan","anoCar","allMis","chrPic","cheMyd","allSin")
-#species_info <- species_info %>%
-#  filter(!(short_name %in% outgroups))
 
 sp_abbr <- species_info$code
 
@@ -144,12 +135,17 @@ pdf("06_output_cluster_by_species/pca_sp_pvals_scree_plot.pdf")
 plot(pca_pvals)
 dev.off()
 
+#Variance
+summary(pca_pvals)
+
 write_csv(data.frame(pca_pvals$rotation),"06_output_cluster_by_species/pca_sp_pvals_loadings.csv")
 write_csv(data.frame(pca_pvals$x),"06_output_cluster_by_species/pca_sp_pvals_coordinates.csv")
 
+save(pca_pvals,bsrel_sp_pval_res_gene_raw, file="06_output_cluster_by_species/pca_sp_pvals_all_res.rDat")
+
 pca_sp <- pca_pvals
 
-#Read in tree, chose random hog to give branch lengths. Species tree has same topology for all hogs.
+#Read in tree, chose random hog to give branch lengths. Species tree has same topology for all hogs. Note that results are robust to hog selected.
 sp_tree_bl <- read.tree("06_input_cluster_by_species/11700.tree1.nwk")
 #sp_tree_bl <- read.tree("Alignments/10090.tree1.nwk")
 sp_tree <- read.tree("06_input_cluster_by_species/11700.final_spt.nwk")
@@ -270,6 +266,8 @@ plotBranchbyTrait(sp_tree_bl_names,sp_names_PC3,mode="tips",palette = "custom",u
 dev.off()
 
 
+
+
  
 #########Correlations with PC axes and life history traits
 
@@ -282,34 +280,46 @@ sp_coord <- pca_sp$x %>%
 sp_coord_anno <- sp_coord %>%
   left_join(species_info,by=c("sp_abbr" = "code")) %>%
   mutate(heart_index = heart_mass_mean/body_mass_mean) %>%
+  mutate(log_body_mean_mean_hbabm = log(body_mass_mean_hbabm)) %>%
   left_join(lifespan_info,by=c("sp_abbr" = "code"))
 
 sp_coord_anno %>%
-  ggplot(aes(PC1,log(body_mass_mean_hbabm))) +
+  ggplot(aes(log(body_mass_mean_hbabm),PC1)) +
   geom_point() +
-  ylab("log(body mass)")
+  xlab("log(body mass)")
 ggsave("06_output_cluster_by_species/PC1_log_BM_HABM.pdf",width=6,height=4)
 
 sp_coord_anno %>%
-  ggplot(aes(lifespan,log(body_mass_mean_hbabm))) +
+  ggplot(aes(log(body_mass_mean_hbabm),lifespan)) +
   geom_point() +
-  ylab("log(body mass)")
+  xlab("log(body mass)")
 ggsave("06_output_cluster_by_species/lifespan_log_BM_HABM.pdf",width=6,height=4)
 
 sp_coord_anno %>%
-  ggplot(aes(PC1,lifespan)) +
+  ggplot(aes(lifespan,PC1)) +
   geom_point()
 ggsave("06_output_cluster_by_species/PC1_lifespan.pdf",width=6,height=4)
 
+sp_coord_anno_df <- sp_coord_anno %>%
+  as.data.frame()
+rownames(sp_coord_anno_df) <- sp_coord_anno_df$sp_abbr
+
+#Plot phylomorphospace plot of body size by PC1
+pdf("06_output_cluster_by_species/PC1_log_BM_HABM_phylomorphospace.pdf",width=8,height=8)
+phylomorphospace(sp_tree_bl,sp_coord_anno_df[, c("log_body_mean_mean_hbabm", "PC1")], label="off", xlab="log(body mass)", ylab="PC1")
+dev.off()
+
+
 
 #Correlation between PC1 and avian body masses
-rownames(sp_coord_anno_df) <- sp_coord_anno_df$sp_abbr
+
 bm_hbabm_pc1 <- gls(PC1 ~ log(body_mass_mean_hbabm),correlation=corBrownian(1,sp_tree_bl),data=sp_coord_anno_df)
 ou_hbabm_pc1 <- gls(PC1 ~ log(body_mass_mean_hbabm),correlation=corMartins(1,sp_tree_bl),data=sp_coord_anno_df)
 sink("06_output_cluster_by_species/bodymass_PC1_PGLSCorr.txt")
 summary(bm_hbabm_pc1)
 summary(ou_hbabm_pc1)
 sink()
+
 
 #Correlation between PC1 and  lifespan
 red_anno <- sp_coord_anno_df[!is.na(sp_coord_anno_df$lifespan),]
@@ -373,7 +383,7 @@ comb_data_df <- comb_data %>%
   as.data.frame
 
 bm_hog_spear_res <- list()
-#For each hog that has at least 1 selected branch, perform PGLS between mean body mass and selected branches. Record p-value, correlation
+#For each hog that has at least 1 selected branch, perform cor.test between mean body mass and selected branches. Record p-value, correlation
 for (i in 1:length(names_sel_hogs)){
   hog <- names_sel_hogs[i]
   #data <- comb_data %>%
@@ -444,9 +454,11 @@ corr_kk_summary %>%
   filter(qvalues<0.3) %>%
   write_csv("06_output_cluster_by_species/bodymass_PC1_spearman_GSE_results_q<0.3.csv")
 
+gseaplot(corr_kk,geneSetID=1,title = "cellular senescence")
+
 #Are the results robust to looking at enrichment of genes with significant p-values? Cellular senescence results are
 corr_sig <- hog_phylo_spear_res_anno %>%
-  filter(FDRPval_spear < 0.2) %>%
+  filter(FDRPval_spear < 0.3) %>%
   filter(!is.na(entrezgene)) %>%
   filter(n_sel > 5) %>%
   distinct(entrezgene) %>%

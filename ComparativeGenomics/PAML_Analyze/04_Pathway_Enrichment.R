@@ -168,30 +168,32 @@ setwd("../../")
 #######################################################################################################################
 load("02_output_annotated_data/all_res_zf_hs.Rdat")
 
-#Testing with species tree
-all_tested_sp_zf <- all_res_sp_zf_hs %>%
+#Testing with gene tree
+all_tested_gene_zf <- all_res_gene_zf_hs %>%
   filter(!is.na(FDRPval_m1m2) & !is.na(FDRPval_m2m2a) & !is.na(FDRPval_m7m8) & !is.na(FDRPval_m8m8a) & !is.na(FDRPval_busted)) %>%
   filter(!is.na(entrezgene_zf)) %>%
   distinct(hog,.keep_all=TRUE) %>%
   pull(entrezgene_zf)
 
-all_sig_sp_zf <- all_res_sp_zf_hs %>%
+all_sig_gene_zf <- all_res_gene_zf_hs %>%
   filter(!is.na(FDRPval_m1m2) & !is.na(FDRPval_m2m2a) & !is.na(FDRPval_m7m8) & !is.na(FDRPval_m8m8a) & !is.na(FDRPval_busted)) %>%
   filter(FDRPval_m1m2 < 0.05 & FDRPval_m2m2a < 0.05 & FDRPval_m7m8 < 0.05 & FDRPval_m8m8a < 0.05 & FDRPval_busted < 0.05) %>%
   filter(!is.na(entrezgene_zf)) %>%
   distinct(hog,.keep_all=TRUE) %>%
   pull(entrezgene_zf)
 
-all_sp_zf_k <- enrichKEGG(all_sig_sp_zf,organism="tgu",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_sp_zf,keyType="ncbi-geneid")
+all_gene_zf_k <- enrichKEGG(all_sig_gene_zf,organism="tgu",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene_zf,keyType="ncbi-geneid")
 
-write_csv(as.data.frame(all_sp_zf_k), path="04_output_pathway_results/zebrafinch_speciestree_pathwayres_p1_q0.1.csv")
+write_csv(as.data.frame(all_gene_zf_k), path="04_output_pathway_results/zebrafinch_genetree_pathwayres_nocutoff.csv")
+
+all_gene_zf_k_q0.1 <- enrichKEGG(all_sig_gene_zf,organism="tgu",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_gene_zf,keyType="ncbi-geneid")
 
 
 #Produce cnetplot to show how genes from different pathways overlap
-all_genes_cnet <- cnetplot(all_sp_zf_k,showCategory = 30)
+all_genes_cnet <- cnetplot(all_gene_zf_k_q0.1,showCategory = 30)
 
 #Need to report how many sig categories to show, so that we can turn off gene names
-n_sig_categories <- nrow(as.data.frame(all_sp_zf_k))
+n_sig_categories <- nrow(as.data.frame(all_gene_zf_k_q0.1))
 
 #Change gene names to blank spaces
 all_genes_cnet$data$name <- c(as.character(all_genes_cnet$data$name[1:n_sig_categories]),rep("",nrow(all_genes_cnet$data)-n_sig_categories))
@@ -210,7 +212,7 @@ all_genes_cnet$theme$text$size=10
 
 #Save
 all_genes_cnet
-ggsave("04_output_pathway_results/zebrafinch_sptree_qval0.1_cnetplot.pdf",width=8,height=8)
+ggsave("04_output_pathway_results/zebrafinch_genetree_qval0.1_cnetplot.pdf",width=8,height=8)
 
 
 #######################################################################################################################
@@ -218,29 +220,30 @@ ggsave("04_output_pathway_results/zebrafinch_sptree_qval0.1_cnetplot.pdf",width=
 #######################################################################################################################
 
 #Testing with species tree
-all_tested_sp_hs <- all_res_sp_zf_hs %>%
+all_tested_gene_hs <- all_res_gene_zf_hs %>%
   filter(!is.na(FDRPval_m1m2) & !is.na(FDRPval_m2m2a) & !is.na(FDRPval_m7m8) & !is.na(FDRPval_m8m8a) & !is.na(FDRPval_busted)) %>%
   filter(!is.na(entrezgene_hs)) %>%
   distinct(hog,.keep_all=TRUE) %>%
   pull(entrezgene_hs)
 
-all_sig_sp_hs <- all_res_sp_zf_hs %>%
+all_sig_gene_hs <- all_res_gene_zf_hs %>%
   filter(!is.na(FDRPval_m1m2) & !is.na(FDRPval_m2m2a) & !is.na(FDRPval_m7m8) & !is.na(FDRPval_m8m8a) & !is.na(FDRPval_busted)) %>%
   filter(FDRPval_m1m2 < 0.05 & FDRPval_m2m2a < 0.05 & FDRPval_m7m8 < 0.05 & FDRPval_m8m8a < 0.05 & FDRPval_busted < 0.05) %>%
   filter(!is.na(entrezgene_hs)) %>%
   distinct(hog,.keep_all=TRUE) %>%
   pull(entrezgene_hs)
 
-all_sp_hs_k <- enrichKEGG(all_sig_sp_hs,organism="hsa",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_sp_hs,keyType="ncbi-geneid")
+all_gene_hs_k <- enrichKEGG(all_sig_gene_hs,organism="hsa",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene_hs,keyType="ncbi-geneid")
 
+write_csv(as.data.frame(all_gene_hs_k), path="04_output_pathway_results/human_speciestree_pathwayres_nocutoff.csv")
 
-write_csv(as.data.frame(all_sp_hs_k), path="04_output_pathway_results/human_speciestree_pathwayres_p1_q0.1.csv")
+all_gene_hs_k_q0.1 <- enrichKEGG(all_sig_gene_hs,organism="hsa",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=0.1,universe=all_tested_gene_hs,keyType="ncbi-geneid")
 
 #Produce cnetplot to show how genes from different pathways overlap
-all_genes_cnet <- cnetplot(all_sp_hs_k,showCategory = 30)
+all_genes_cnet <- cnetplot(all_gene_hs_k_q0.1,showCategory = 40)
 
 #Need to report how many sig categories to show, so that we can turn off gene names
-n_sig_categories <- nrow(as.data.frame(all_sp_hs_k))
+n_sig_categories <- nrow(as.data.frame(all_gene_hs_k_q0.1))
 
 #Change gene names to blank spaces
 all_genes_cnet$data$name <- c(as.character(all_genes_cnet$data$name[1:n_sig_categories]),rep("",nrow(all_genes_cnet$data)-n_sig_categories))
@@ -259,5 +262,5 @@ all_genes_cnet$theme$text$size=10
 
 #Save
 all_genes_cnet
-ggsave("04_output_pathway_results/human_sptree_qval0.1_cnetplot.pdf",width=8,height=8)
+ggsave("04_output_pathway_results/human_genetree_qval0.1_cnetplot.pdf",width=12,height=12)
 
