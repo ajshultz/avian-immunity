@@ -153,7 +153,7 @@ mean_parameters <- all_res %>%
             mean_omega_BUSTED = mean(omega_busted),
             mean_prop_sites_BUSTED = mean(weight_busted))
 
-#Test whether or not the two disributions are the same, 
+#Test whether or not the two distributions are the same, 
 sink("03_output_general_stats/m0_dataset_comparison_ks_test_results.txt")
 all_res %>%
   dplyr::select(hog,dataset, Omega_m0) %>%
@@ -206,6 +206,12 @@ all_res %>%
   dplyr::group_by(dataset) %>%
   do(w=wilcox.test(prop_sel.n~sig_busted,data=., paired=FALSE)) %>%
   unlist
+
+all_res %>%
+  mutate(sig_busted = FDRPval_busted < 0.05) %>%
+  dplyr::group_by(dataset, sig_busted) %>%
+  filter(!is.na(prop_sel.n)) %>%
+  summarize(ngenes=n(),mean_prop_sig_lineages=mean(prop_sel.n), median_prop_sig_lineages=median(prop_sel.n), sd_prop_sig_lineages=sd(prop_sel.n))
 sink()
   
 all_res_gene_ncbi <- all_res_gene_ncbi %>%  
