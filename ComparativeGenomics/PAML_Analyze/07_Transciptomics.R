@@ -135,13 +135,13 @@ all_res_birds_nodups <- all_res_birds %>%
 all_res_birds_singles <- all_res_birds %>%
   left_join(all_res_birds_nodups,by=c("bioproject","ensembl_id_gg")) %>%
   dplyr::select(-beta_sig,-sig) %>%
-  rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
+  dplyr::rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
   distinct(bioproject,ensembl_id_gg,.keep_all=T)
 
 #Now each specific dataset is cleaned up, but we need to clean up bioprojects that had more than 1 condition (timepoints, etc.)
 bioprojects_n_conditions <- all_res_birds_singles %>%
   group_by(bioproj_number,bioproject) %>%
-  distinct(bioproj) %>%
+  dplyr::distinct(bioproj) %>%
   group_by(bioproj_number) %>%
   summarize(n_cond = n())
 
@@ -207,7 +207,7 @@ collapse_n_matches <- function(dataset,bioproject_number,n_matches,ensembl_id_co
     filter(bioproj_number == bioproject_number) %>%
     left_join(sig_values_fixed,by=paste0(ensembl_id_column)) %>%
     dplyr::select(-beta_sig,-sig) %>%
-    rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
+    dplyr::rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
     distinct(bioproj_number,!!as.name(ensembl_id_column),.keep_all=T)
   
   return(all_res_clean)
@@ -427,10 +427,15 @@ all_res_mammals_nodups <- all_res_mammals %>%
 all_res_mammals_singles <- all_res_mammals %>%
   left_join(all_res_mammals_nodups,by=c("bioproject","ensembl_id_hs")) %>%
   dplyr::select(-beta_sig,-sig) %>%
-  rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
+  dplyr::rename(beta_sig = singles_beta_sig,sig=singles_sig) %>%
   distinct(bioproject,ensembl_id_hs,.keep_all=T)
 
 #Now each specific dataset is cleaned up, but we need to clean up bioprojects that had more than 1 condition (timepoints, etc.)
+
+#Create a tibble with useful info for each bioproject
+bioproject_info <- all_res_mammals %>%
+  distinct(bioproject,.keep_all=T) %>%
+  dplyr::select(bioproject,bioproj_number,infect,infect_type_specific,infect_type_virus_type,infect_type_general,clade)
 
 #First, write a csv of how many conditions are in each bioproject (note that this was the base used to create the input for bioproject_cond_count_anno)
 bioprojects_n_conditions_mammals <- all_res_mammals_singles %>%
@@ -442,10 +447,7 @@ bioprojects_n_conditions_mammals <- all_res_mammals_singles %>%
   write_csv("07_output_transcriptomics/bioproject_cond_count.csv")
 
 #Write some basic stats for each bioproject + conditions
-#Create a tibble with useful info for each bioproject
-bioproject_info <- all_res_mammals %>%
-  distinct(bioproject,.keep_all=T) %>%
-  dplyr::select(bioproject,bioproj_number,infect,infect_type_specific,infect_type_virus_type,infect_type_general,clade)
+
 
 all_res_mammals %>%
   filter(!is.na(sig)) %>%
@@ -998,3 +1000,4 @@ all_trans_sig_res <- bind_rows(both_vs_not_trans_sig_res,birds_only_vs_not_trans
 
 all_trans_sig_res %>%
   write_csv("07_output_transcriptomics/birds_mammals_trans_sig_both_wilcox_test_results.csv")
+
