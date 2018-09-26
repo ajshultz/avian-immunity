@@ -20,10 +20,6 @@ load("02_output_annotated_data/all_res_zf_hs.Rdat")
 #######################################################################################################################
 
 species_info <- read_csv("06_input_cluster_by_species/sackton_et_al_species_list.csv")
-lifespan_info <- read_csv("06_input_cluster_by_species/bird_lifespan_info.csv")
-
-lifespan_info <- lifespan_info %>%
-  dplyr::select(code,lifespan,captivity_or_wild)
 
 sp_abbr <- species_info$code
 
@@ -280,8 +276,7 @@ sp_coord <- pca_sp$x %>%
 sp_coord_anno <- sp_coord %>%
   left_join(species_info,by=c("sp_abbr" = "code")) %>%
   mutate(heart_index = heart_mass_mean/body_mass_mean) %>%
-  mutate(log_body_mean_mean_hbabm = log(body_mass_mean_hbabm)) %>%
-  left_join(lifespan_info,by=c("sp_abbr" = "code"))
+  mutate(log_body_mean_mean_hbabm = log(body_mass_mean_hbabm))
 
 sp_coord_anno %>%
   ggplot(aes(log(body_mass_mean_hbabm),PC1)) +
@@ -289,16 +284,6 @@ sp_coord_anno %>%
   xlab("log(body mass)")
 ggsave("06_output_cluster_by_species/PC1_log_BM_HABM.pdf",width=6,height=4)
 
-sp_coord_anno %>%
-  ggplot(aes(log(body_mass_mean_hbabm),lifespan)) +
-  geom_point() +
-  xlab("log(body mass)")
-ggsave("06_output_cluster_by_species/lifespan_log_BM_HABM.pdf",width=6,height=4)
-
-sp_coord_anno %>%
-  ggplot(aes(lifespan,PC1)) +
-  geom_point()
-ggsave("06_output_cluster_by_species/PC1_lifespan.pdf",width=6,height=4)
 
 sp_coord_anno_df <- sp_coord_anno %>%
   as.data.frame()
@@ -321,15 +306,7 @@ summary(ou_hbabm_pc1)
 sink()
 
 
-#Correlation between PC1 and  lifespan
-red_anno <- sp_coord_anno_df[!is.na(sp_coord_anno_df$lifespan),]
-red_sp_tree_bl <- drop.tip(sp_tree_bl,setdiff(sp_tree_bl$tip.label,rownames(red_anno)))
-bm_lifespan_pc1 <- gls(PC1 ~ lifespan,correlation=corBrownian(1,red_sp_tree_bl),data=red_anno)
-ou_lifespan_pc1 <- gls(PC1 ~ lifespan,correlation=corMartins(1,red_sp_tree_bl),data=red_anno)
-sink("06_output_cluster_by_species/lifespan_PC1_PGLSCorr.txt")
-summary(bm_lifespan_pc1)
-summary(ou_lifespan_pc1)
-sink()
+
 
 
 ###Look at correlations with selected pvalues and body mass with Spearman's rank correlation, to account for non-normalcy (but doesn't account for phylogenetic structure)
@@ -379,7 +356,6 @@ comb_data <- bsrel_sp_pval_res_gene_forcorr %>%
   left_join(sp_coord_anno)
 
 comb_data_df <- comb_data %>%
-  #filter(!is.na(lifespan)) %>%
   as.data.frame
 
 bm_hog_spear_res <- list()
@@ -393,7 +369,7 @@ for (i in 1:length(names_sel_hogs)){
   
   x <- comb_data_df[,colnames(comb_data_df)==hog]
   y <- log(comb_data_df$body_mass_mean_hbabm)
-  #y <- log(comb_data_df$lifespan)
+
   
   try(bm_hog_spear_res[[i]] <- cor.test(x,y,method="spearman"))
   try(hog_phylo_spear_res[i,2] <- bm_hog_spear_res[[i]]$p.value)
@@ -426,10 +402,6 @@ hog_geneids <- all_res_gene_zf_hs %>%
   dplyr::select(hog,entrezgene,entrezgene_zf,entrezgene_hs) %>%
   distinct(hog,.keep_all = TRUE) %>%
   mutate(hog = paste0("hog_",hog))
-
-#Annotate loadings with hog gene IDs
-loading_anno <- hog_geneids %>%
-  left_join(loading)
 
 
 #Gene set enrichement with spearman correlation results, only test genes that are selected in at least 5 species to avoid biases associated with genes that are present in only a few species.
@@ -478,5 +450,3 @@ spear_enrich %>%
 spear_enrich %>%
   filter(qvalue<0.2) %>%
   write_csv("06_output_cluster_by_species/bodymass_PC1_spearman_enrich_results_q<0.2.csv")
-
-pathview(gene.data=corr_sig,pathway.id=spear_enrich$ID,species="gga",both.dirs=list(gene=F),mid="#e5f5f9",high="#2ca25f",kegg.native=T,key.pos="topright",out.suffix="pathway_PC1_enrich")
