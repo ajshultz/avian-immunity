@@ -54,7 +54,7 @@ def pull_sp_pval(res_list,species,type="pval"):
             res = str(min(res))
         else:
             res = str(max(res))
-        return(str(min(res)))
+        return(res)
 
 
 def main():
