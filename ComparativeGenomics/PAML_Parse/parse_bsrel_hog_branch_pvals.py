@@ -30,13 +30,25 @@ def pull_sp_pval(res_list,species,type="pval"):
         res = ([float(res[6]) for res in res_list if species in res[0]])
     elif type == "pvalholm":
         res = ([float(res[7]) for res in res_list if species in res[0]])
+    elif type == "omega":
+        res = ([float(res[3])] for res in res_list if species in res[0])
+    elif type == "weight":
+        res = ([float(res[4])] for res in res_list if species in res[0])
+    elif type == "mean_dnds":
+        res = ([float(res[1])] for res in res_list if species in res[0])
+    elif type == "rate_classes":
+        res = ([float(res[2])] for res in res_list if species in res[0])
+    elif type == "branch_length":
+        res = ([float(res[8])] for res in res_list if species in res[0])
+    elif type == "lrt":
+        res = ([float(res[5])] for res in res_list if species in res[0])
     else:
-        print("pval type must be pval or pvalholm")
+        print("parameter type must be pval, pvalholm, omega, weight, mean_dnds, rate_classes, branch_length, lrt")
     if len(res) < 1:
         return('NA')
     else:
         return(str(min(res)))
-    
+
 
 def main():
     #Get config file from arguments
@@ -44,26 +56,26 @@ def main():
     parser.add_argument("--hog", help="hog to analyze")
     parser.add_argument("--results_file", help="bsrel resultsfile to analyze")
     parser.add_argument("--spnames_file", help="file of species to analyze, expects code, or abbreviation to be in the first column")
-    parser.add_argument("--pval_type", help="pval (raw pvalue) or pvalholm (FDR adjusted)")
+    parser.add_argument("--parameter", help="pval (raw pvalue), pvalholm (FDR adjusted), omega (OmegaOver1), weight (WtOmegaOver1), mean_dnds (Mean_dNdS), rate_classes (RateClasses), branch_length (BranchLength), lrt (LRT). Parameter names reflect aBS-REL output")
 
     args = parser.parse_args()
-    
+
     hog = args.hog
     results_file = args.results_file
     spnames_file = args.spnames_file
-    pval_type = args.pval_type
-    
-    if pval_type != "pval" and pval_type != "pvalholm":
-        print("pval_type must be pval (raw pvalue) or pvalholm (FDR adjusted)")
+    parameter = args.parameter
+
+    if parameter != "pval" and parameter != "pvalholm" and parameter != "omega" and parameter != "weight" and parameter != "mean_dnds" and parameter != "rate_classes" and parameter != "branch_length" and parameter != "lrt":
+        print("parameter must be pval (raw pvalue), pvalholm (FDR adjusted), omega (OmegaOver1), weight (WtOmegaOver1), mean_dnds (Mean_dNdS), rate_classes (RateClasses), branch_length (BranchLength), or lrt (LRT)")
         quit()
-    
+
     #Get list of species names
     sp = grab_sp(spnames_file)
-    
+
     #Look for the presence of a results file for a given hog, if not present, print NAs
-    
+
     all_na = ["NA"]*len(sp)
-    
+
     if not os.path.isfile(results_file):
         no_data = "\t".join(all_na)
         print('%s\t%s'%(hog,no_data))
@@ -74,15 +86,14 @@ def main():
         reader=csv.reader(f)
         res_list=list(reader)
 
-    pval_list = []
-    pvalholm_list = []
+    param_list = []
 
     for i in range(0,len(sp)):
         species = sp[i]
-        pval_list.append(pull_sp_pval(res_list,species,type=pval_type))
+        param_list.append(pull_sp_pval(res_list,species,type=parameter))
 
-    pvals = "\t".join(pval_list)
-    print('%s\t%s'%(hog,pvals))
+    params = "\t".join(param_list)
+    print('%s\t%s'%(hog,params))
 
 
 if __name__ == "__main__":
