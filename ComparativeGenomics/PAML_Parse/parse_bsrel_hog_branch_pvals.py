@@ -43,7 +43,10 @@ def pull_sp_pval(res_list,species,type="pval"):
     elif type == "lrt":
         res = ([float(res[5])] for res in res_list if species in res[0])
     else:
-        print("parameter type must be pval, pvalholm, omega, weight, mean_dnds, rate_classes, branch_length, lrt")
+        print("parameter type must be pval, pvalholm, omega, weight, mean_dnds, rate_classes, branch_length, or lrt")
+
+    print(res)
+    
     if len(res) < 1:
         return('NA')
     else:
@@ -64,6 +67,8 @@ def main():
     results_file = args.results_file
     spnames_file = args.spnames_file
     parameter = args.parameter
+
+    print(parameter)
 
     if parameter != "pval" and parameter != "pvalholm" and parameter != "omega" and parameter != "weight" and parameter != "mean_dnds" and parameter != "rate_classes" and parameter != "branch_length" and parameter != "lrt":
         print("parameter must be pval (raw pvalue), pvalholm (FDR adjusted), omega (OmegaOver1), weight (WtOmegaOver1), mean_dnds (Mean_dNdS), rate_classes (RateClasses), branch_length (BranchLength), or lrt (LRT)")
