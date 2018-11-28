@@ -16,7 +16,6 @@ do
     OUTPUT2=/n/holylfs/LABS/edwards_lab/tsackton/ratite_work/06_protein_coding/HyPhy/BS-REL/$RUNDIR/tree2/$HOG.aBSREL.OUT
 
     #Tree 1
-    omega, weight, mean_dnds, rate_classes, branch_length, lrt
     RESULTS_TREE1_PVAL=$(python parse_bsrel_hog_branch_pvals.py --hog $HOG --results_file $OUTPUT1 --spnames_file $SPNAMES_FILE --parameter pval)
     RESULTS_TREE1_PVALHOLM=$(python parse_bsrel_hog_branch_pvals.py --hog $HOG --results_file $OUTPUT1 --spnames_file $SPNAMES_FILE --parameter pvalholm)
     RESULTS_TREE1_OMEGA=$(python parse_bsrel_hog_branch_pvals.py --hog $HOG --results_file $OUTPUT1 --spnames_file $SPNAMES_FILE --parameter omega)

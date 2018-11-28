@@ -26,30 +26,34 @@ def grab_sp(spnamesfile):
 
 
 def pull_sp_pval(res_list,species,type="pval"):
+
     if type == "pval":
         res = ([float(res[6]) for res in res_list if species in res[0]])
     elif type == "pvalholm":
         res = ([float(res[7]) for res in res_list if species in res[0]])
     elif type == "omega":
-        res = ([float(res[3])] for res in res_list if species in res[0])
+        res = ([float(res[3]) for res in res_list if species in res[0]])
     elif type == "weight":
-        res = ([float(res[4])] for res in res_list if species in res[0])
+        res = ([float(res[4]) for res in res_list if species in res[0]])
     elif type == "mean_dnds":
-        res = ([float(res[1])] for res in res_list if species in res[0])
+        res = ([float(res[1]) for res in res_list if species in res[0]])
     elif type == "rate_classes":
-        res = ([float(res[2])] for res in res_list if species in res[0])
+        res = ([float(res[2]) for res in res_list if species in res[0]])
     elif type == "branch_length":
-        res = ([float(res[8])] for res in res_list if species in res[0])
+        res = ([float(res[8]) for res in res_list if species in res[0]])
     elif type == "lrt":
-        res = ([float(res[5])] for res in res_list if species in res[0])
+        res = ([float(res[5]) for res in res_list if species in res[0]])
     else:
         print("parameter type must be pval, pvalholm, omega, weight, mean_dnds, rate_classes, branch_length, or lrt")
 
-    print(res)
-    
     if len(res) < 1:
         return('NA')
+
     else:
+        if type == "pval" or type == "pvalholm":
+            res = str(min(res))
+        else:
+            res = str(max(res))
         return(str(min(res)))
 
 
@@ -67,8 +71,6 @@ def main():
     results_file = args.results_file
     spnames_file = args.spnames_file
     parameter = args.parameter
-
-    print(parameter)
 
     if parameter != "pval" and parameter != "pvalholm" and parameter != "omega" and parameter != "weight" and parameter != "mean_dnds" and parameter != "rate_classes" and parameter != "branch_length" and parameter != "lrt":
         print("parameter must be pval (raw pvalue), pvalholm (FDR adjusted), omega (OmegaOver1), weight (WtOmegaOver1), mean_dnds (Mean_dNdS), rate_classes (RateClasses), branch_length (BranchLength), or lrt (LRT)")
