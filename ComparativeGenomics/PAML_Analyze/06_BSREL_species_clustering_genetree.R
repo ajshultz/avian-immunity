@@ -35,13 +35,13 @@ format_branch_string <- function(branches){
 }
 
 #Pull vector of nominally selected branch strings
-nom_branches <- all_res_sp_ncbi %>%
+nom_branches <- all_res_gene_ncbi %>%
   #dplyr::select(nom_branches) %>%
   mutate(nom_branches = as.character(nom_branches)) %>%
   pull(nom_branches)
 
 #Presence/absence result matrix for all hogs
-all_sel <- matrix(nrow=nrow(all_res_sp_ncbi), ncol=length(sp_abbr))
+all_sel <- matrix(nrow=nrow(all_res_gene_ncbi), ncol=length(sp_abbr))
 
 #Loop through all hogs and populate matrix
 for (i in 1:length(nom_branches)){
@@ -51,7 +51,7 @@ for (i in 1:length(nom_branches)){
   #Create presence/absence vector for all species that are in clean_branches
   all_sel[i,] <- sp_abbr %in% clean_branches
 }
-rownames(all_sel) <- all_res_sp_ncbi %>% pull(hog)
+rownames(all_sel) <- all_res_gene_ncbi %>% pull(hog)
 colnames(all_sel) <- sp_abbr
 
 #Get number of selected branches for each HOG
@@ -75,7 +75,7 @@ rep_na_mean <- function(vec){
 
 
 #How many missing hog results per species?
-sp_missing_na <- bsrel_sp_pval_res_sp %>%
+sp_missing_na <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "pval") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
   dplyr::select(-pval_type,-treenum) %>%
@@ -87,7 +87,7 @@ sp_missing_na <- bsrel_sp_pval_res_sp %>%
   summarize(n_na = sum(is.na(pval)))
 
 #Set all "0" values to 1e-18 (min is 1e-17), so can take log10
-bsrel_sp_pval_res_sp_raw <- bsrel_sp_pval_res_sp %>%
+bsrel_sp_pval_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "pval") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
   dplyr::select(-pval_type,-treenum) %>%
@@ -96,7 +96,7 @@ bsrel_sp_pval_res_sp_raw <- bsrel_sp_pval_res_sp %>%
   mutate(hog=paste0("hog_",hog))
 
 #Extract omega values (for second rate class)
-bsrel_sp_omega_res_sp_raw <- bsrel_sp_pval_res_sp %>%
+bsrel_sp_omega_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "omega") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
   dplyr::select(-pval_type,-treenum) %>%
@@ -105,7 +105,7 @@ bsrel_sp_omega_res_sp_raw <- bsrel_sp_pval_res_sp %>%
 
 
 #Extract nubmer rate classes values (for second rate class)
-bsrel_sp_rate_classes_res_sp_raw <- bsrel_sp_pval_res_sp %>%
+bsrel_sp_rate_classes_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "rate_classes") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
   dplyr::select(-pval_type,-treenum) %>%
@@ -114,26 +114,26 @@ bsrel_sp_rate_classes_res_sp_raw <- bsrel_sp_pval_res_sp %>%
 
 #Set weights of genes not identified as being under selection to 0 (pval > 0.05) and weights of genes identified as having one rate class to 0.
 #Pull out the weights (proportion of sites under selection)
-bsrel_sp_all_params_res_sp_raw <- bsrel_sp_pval_res_sp %>%
+bsrel_sp_all_params_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "weight") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
   dplyr::select(-pval_type,-treenum) %>%
   gather(sp,weight,-hog) %>%
   mutate(hog=paste0("hog_",hog)) %>%
-  left_join(bsrel_sp_pval_res_sp_raw) %>%
-  left_join(bsrel_sp_omega_res_sp_raw) %>%
+  left_join(bsrel_sp_pval_res_gene_raw) %>%
+  left_join(bsrel_sp_omega_res_gene_raw) %>%
   left_join(bsrel_sp_rate_classes_res_gene_raw) %>%
   mutate(weight_sig = if_else(rate_classes == 1,0,weight)) %>%
   mutate(weight_sig = if_else(pval > 0.05,0,weight)) %>%
   mutate(omega_sig = if_else(rate_classes == 1,0,omega)) %>%
   mutate(omega_sig = if_else(pval > 0.05,0,omega))
 
-bsrel_sp_weight_res_sp_raw <- bsrel_sp_all_params_res_sp_raw %>%
+bsrel_sp_weight_res_gene_raw <- bsrel_sp_all_params_res_gene_raw %>%
   dplyr::select(sp,hog,weight_sig) %>%
   spread(hog,weight_sig) %>%
   mutate_at(vars(-sp),rep_na_mean)
 
-bsrel_sp_omega_res_sp_raw <- bsrel_sp_all_params_res_sp_raw %>%
+bsrel_sp_omega_res_gene_raw <- bsrel_sp_all_params_res_gene_raw %>%
   dplyr::select(sp,hog,omega_sig) %>%
   #mutate(omega_sig=ifelse(omega_sig==0,1e-18,omega_sig)) %>%
   spread(hog,omega_sig) %>%
@@ -146,10 +146,10 @@ log_use_0s_omega <- function(column){
 }
 
 #For omega, replace all 0 values with 1 (neutral value), then log transform
-bsrel_sp_omega_res_sp_trans <- bsrel_sp_omega_res_sp_raw %>%
+bsrel_sp_omega_res_gene_trans <- bsrel_sp_omega_res_gene_raw %>%
   mutate_at(vars(-sp),log_use_0s_omega)
 
-bsrel_sp_pval_res_sp_raw <- bsrel_sp_all_params_res_sp_raw %>%
+bsrel_sp_pval_res_gene_raw <- bsrel_sp_all_params_res_gene_raw %>%
   dplyr::select(sp,hog,pval) %>%
   mutate(pval=log10(pval)) %>%
   spread(hog,pval)  %>%
@@ -157,7 +157,7 @@ bsrel_sp_pval_res_sp_raw <- bsrel_sp_all_params_res_sp_raw %>%
 
 
 #Which hogs are missing all data?
-hogs_to_keep <- bsrel_sp_pval_res_sp %>%
+hogs_to_keep <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "pval") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
   dplyr::select(-pval_type,-treenum) %>%
@@ -169,33 +169,30 @@ hogs_to_keep <- bsrel_sp_pval_res_sp %>%
   filter(n_pvals > 0) %>%
   pull(hog)
 
-
 #Prep format for PCA
-bsrel_sp_pval_res_sp_forpca <- bsrel_sp_pval_res_sp_raw %>%
+bsrel_sp_pval_res_gene_forpca <- bsrel_sp_pval_res_gene_raw %>%
   dplyr::select(sp,hogs_to_keep) %>%
   as.data.frame
-rownames(bsrel_sp_pval_res_sp_forpca) <- bsrel_sp_pval_res_sp_forpca$sp
-bsrel_sp_pval_res_sp_forpca$sp <- NULL
+rownames(bsrel_sp_pval_res_gene_forpca) <- bsrel_sp_pval_res_gene_forpca$sp
+bsrel_sp_pval_res_gene_forpca$sp <- NULL
 
-bsrel_sp_weight_res_sp_forpca <- bsrel_sp_weight_res_sp_raw %>%
+bsrel_sp_weight_res_gene_forpca <- bsrel_sp_weight_res_gene_raw %>%
   dplyr::select(sp,hogs_to_keep) %>%
   as.data.frame
-rownames(bsrel_sp_weight_res_sp_forpca) <- bsrel_sp_weight_res_sp_forpca$sp
-bsrel_sp_weight_res_sp_forpca$sp <- NULL
+rownames(bsrel_sp_weight_res_gene_forpca) <- bsrel_sp_weight_res_gene_forpca$sp
+bsrel_sp_weight_res_gene_forpca$sp <- NULL
 
-bsrel_sp_omega_res_sp_forpca <- bsrel_sp_omega_res_sp_trans %>%
+bsrel_sp_omega_res_gene_forpca <- bsrel_sp_omega_res_gene_trans %>%
   dplyr::select(sp,hogs_to_keep) %>%
   as.data.frame
-rownames(bsrel_sp_omega_res_sp_forpca) <- bsrel_sp_omega_res_sp_forpca$sp
-bsrel_sp_omega_res_sp_forpca$sp <- NULL
+rownames(bsrel_sp_omega_res_gene_forpca) <- bsrel_sp_omega_res_gene_forpca$sp
+bsrel_sp_omega_res_gene_forpca$sp <- NULL
 
 
 #Run PCA
 pca_pvals <- prcomp(bsrel_sp_pval_res_gene_forpca)
-
-pca_pvals <- prcomp(bsrel_sp_pval_res_sp_forpca)
-pca_omega <- prcomp(bsrel_sp_omega_res_sp_forpca)
-pca_weights <- prcomp(bsrel_sp_weight_res_sp_forpca)
+pca_omega <- prcomp(bsrel_sp_omega_res_gene_forpca)
+pca_weights <- prcomp(bsrel_sp_weight_res_gene_forpca)
 
 #Extract loadings
 loading <- pca_pvals$rotation %>%
@@ -214,15 +211,15 @@ loading_omega <- pca_omega$rotation %>%
   as.tibble
 
 #Scree plot
-pdf("06_output_cluster_by_species/pca_sp_pvals_scree_plot.pdf")
+pdf("06_output_cluster_by_species/pca_gene_pvals_scree_plot.pdf")
 plot(pca_pvals)
 dev.off()
 
-pdf("06_output_cluster_by_species/pca_sp_omega_scree_plot.pdf")
+pdf("06_output_cluster_by_species/pca_gene_omega_scree_plot.pdf")
 plot(pca_omega)
 dev.off()
 
-pdf("06_output_cluster_by_species/pca_sp_weights_scree_plot.pdf")
+pdf("06_output_cluster_by_species/pca_gene_weights_scree_plot.pdf")
 plot(pca_weights)
 dev.off()
 
@@ -232,22 +229,22 @@ summary(pca_omega)
 summary(pca_weights)
 
 #Save pval results
-write_csv(data.frame(pca_pvals$rotation),"06_output_cluster_by_species/pca_sp_pvals_loadings.csv")
-write_csv(data.frame(pca_pvals$x),"06_output_cluster_by_species/pca_sp_pvals_coordinates.csv")
+write_csv(data.frame(pca_pvals$rotation),"06_output_cluster_by_species/pca_gene_pvals_loadings.csv")
+write_csv(data.frame(pca_pvals$x),"06_output_cluster_by_species/pca_gene_pvals_coordinates.csv")
 
 save(pca_pvals,bsrel_sp_pval_res_gene_raw, file="06_output_cluster_by_species/pca_sp_pvals_all_res.rDat")
 
 #Save omega results
-write_csv(data.frame(pca_omega$rotation),"06_output_cluster_by_species/pca_sp_omega_loadings.csv")
-write_csv(data.frame(pca_omega$x),"06_output_cluster_by_species/pca_sp_omega_coordinates.csv")
+write_csv(data.frame(pca_omega$rotation),"06_output_cluster_by_species/pca_gene_omega_loadings.csv")
+write_csv(data.frame(pca_omega$x),"06_output_cluster_by_species/pca_gene_omega_coordinates.csv")
 
-save(pca_omega,bsrel_sp_omega_res_sp_raw,bsrel_sp_omega_res_sp_trans, file="06_output_cluster_by_species/pca_sp_omega_all_res.rDat")
+save(pca_omega,bsrel_sp_omega_res_gene_raw,bsrel_sp_omega_res_gene_trans, file="06_output_cluster_by_species/pca_gene_omega_all_res.rDat")
 
 #Save weights results
-write_csv(data.frame(pca_weights$rotation),"06_output_cluster_by_species/pca_sp_weights_loadings.csv")
-write_csv(data.frame(pca_weights$x),"06_output_cluster_by_species/pca_sp_weights_coordinates.csv")
+write_csv(data.frame(pca_weights$rotation),"06_output_cluster_by_species/pca_gene_weights_loadings.csv")
+write_csv(data.frame(pca_weights$x),"06_output_cluster_by_species/pca_gene_weights_coordinates.csv")
 
-save(pca_weights,bsrel_sp_weight_res_gene_raw, file="06_output_cluster_by_species/pca_sp_weighs_all_res.rDat")
+save(pca_weights,bsrel_gene_weight_res_gene_raw, file="06_output_cluster_by_species/pca_gene_weights_all_res.rDat")
 
 
 
@@ -426,7 +423,7 @@ sink()
 
 ###Look at correlations with selected pvalues and body mass with Spearman's rank correlation, to account for non-normalcy (but doesn't account for phylogenetic structure)
 #Is there any enrichment in KEGG pathways, given PC loading scores?
-bsrel_sp_pval_res_sp_raw_na <- bsrel_sp_pval_res_sp %>%
+bsrel_sp_pval_res_gene_raw_na <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "pval") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
   dplyr::select(-pval_type,-treenum) %>%
@@ -436,19 +433,18 @@ bsrel_sp_pval_res_sp_raw_na <- bsrel_sp_pval_res_sp %>%
   mutate(hog=paste0("hog_",hog)) %>%
   spread(hog,pval)
 
-bsrel_sp_omega_res_sp_raw_na <- bsrel_sp_all_params_res_sp_raw %>%
+bsrel_sp_omega_res_gene_raw_na <- bsrel_sp_all_params_res_gene_raw %>%
   dplyr::select(hog,sp,omega_sig) %>%
   mutate(omega_sig=ifelse(omega_sig==0,1,omega_sig)) %>%
   mutate(omega_sig=log10(omega_sig)) %>%
   spread(hog,omega_sig)
 
-bsrel_sp_weights_res_sp_raw_na <- bsrel_sp_all_params_res_sp_raw %>%
+bsrel_sp_weights_res_gene_raw_na <- bsrel_sp_all_params_res_gene_raw %>%
   dplyr::select(hog,sp,weight_sig) %>%
   spread(hog,weight_sig)
 
-
 #Which hogs are missing all data?
-hogs_to_keep <- bsrel_sp_pval_res_sp %>%
+hogs_to_keep <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "pval") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
   dplyr::select(-pval_type,-treenum) %>%
@@ -461,25 +457,25 @@ hogs_to_keep <- bsrel_sp_pval_res_sp %>%
   pull(hog)
 
 #Prep format for correlation
-bsrel_sp_pval_res_sp_forcorr <- bsrel_sp_pval_res_sp_raw_na %>%
+bsrel_sp_pval_res_gene_forcorr <- bsrel_sp_pval_res_gene_raw_na %>%
   dplyr::select(sp,hogs_to_keep) %>%
   as.data.frame
-rownames(bsrel_sp_pval_res_sp_forcorr) <- bsrel_sp_pval_res_sp_forcorr$sp
-bsrel_sp_pval_res_sp_forcorr$sp <- NULL
+rownames(bsrel_sp_pval_res_gene_forcorr) <- bsrel_sp_pval_res_gene_forcorr$sp
+bsrel_sp_pval_res_gene_forcorr$sp <- NULL
 
 #Prep format for correlation omega
-bsrel_sp_omega_res_sp_forcorr <- bsrel_sp_omega_res_sp_raw_na %>%
+bsrel_sp_omega_res_gene_forcorr <- bsrel_sp_omega_res_gene_raw_na %>%
   dplyr::select(sp,hogs_to_keep) %>%
   as.data.frame
-rownames(bsrel_sp_omega_res_sp_forcorr) <- bsrel_sp_omega_res_sp_forcorr$sp
-bsrel_sp_omega_res_sp_forcorr$sp <- NULL
+rownames(bsrel_sp_omega_res_gene_forcorr) <- bsrel_sp_omega_res_gene_forcorr$sp
+bsrel_sp_omega_res_gene_forcorr$sp <- NULL
 
 #Prep format for correlation weights
-bsrel_sp_weights_res_sp_forcorr <- bsrel_sp_weights_res_sp_raw_na %>%
+bsrel_sp_weights_res_gene_forcorr <- bsrel_sp_weights_res_gene_raw_na %>%
   dplyr::select(sp,hogs_to_keep) %>%
   as.data.frame
-rownames(bsrel_sp_weights_res_sp_forcorr) <- bsrel_sp_weights_res_sp_forcorr$sp
-bsrel_sp_weights_res_sp_forcorr$sp <- NULL
+rownames(bsrel_sp_weights_res_gene_forcorr) <- bsrel_sp_weights_res_gene_forcorr$sp
+bsrel_sp_weights_res_gene_forcorr$sp <- NULL
 
 
 #Pull vector of hogs that have at least 1 selected branch:
@@ -490,13 +486,13 @@ hog_phylo_spear_res <- matrix(nrow=length(names_sel_hogs),ncol=4)
 hog_phylo_spear_res[,1] <- sel_hogs
 
 #Create a combo dataset with selected branches and species data
-comb_data <- bsrel_sp_pval_res_sp_forcorr %>%
+comb_data <- bsrel_sp_pval_res_gene_forcorr %>%
   rownames_to_column(var = "sp_abbr") %>%
   as.tibble %>%
   left_join(sp_coord_anno)
 
 #Create a combo dataset with selected branches and species data
-comb_data <- bsrel_sp_omega_res_sp_forcorr %>%
+comb_data <- bsrel_sp_omega_res_gene_forcorr %>%
   rownames_to_column(var = "sp_abbr") %>%
   as.tibble %>%
   left_join(sp_coord_anno)
@@ -534,7 +530,7 @@ save(bm_hog_res,hog_phylo_spear_res,file ="06_output_cluster_by_species/bodymass
 #load("06_output_cluster_by_species/bodymass_sppvals_spearman_res.Rdat")
 
 hog_phylo_spear_res_anno <- hog_phylo_spear_res %>%
-  left_join(all_res_sp_zf_hs) %>%
+  left_join(all_res_gene_zf_hs) %>%
   dplyr::select(entrezgene,entrezgene_hs,pvalue,rho,FDRPval_busted,hog) %>%
   mutate(FDRPval_spear = p.adjust(pvalue,method="BH")) %>%
   left_join(n_sig_sp) %>%
@@ -545,7 +541,7 @@ hog_phylo_spear_res_anno <- hog_phylo_spear_res %>%
 #See if any enrichment (or different PC scores) for different categories.
 #Explore loadings
 
-hog_geneids <- all_res_sp_zf_hs %>%
+hog_geneids <- all_res_gene_zf_hs %>%
   dplyr::select(hog,entrezgene,entrezgene_zf,entrezgene_hs) %>%
   distinct(hog,.keep_all = TRUE) %>%
   mutate(hog = paste0("hog_",hog))
