@@ -320,4 +320,13 @@ all_res_gene <- paml_pval_allgenes_gene %>%
 all_res_sp <- paml_pval_allgenes_sp %>%
   full_join(hyphy_res_sp,by="hog_treenum")
 
+#Add alignment lengths
+align_lengths <- align_lengths %>%
+  mutate(hog = as.character(hog))
+
+all_res_gene %>%
+  left_join(align_lengths) %>%
+  filter(is.na(length)) %>%
+  dplyr::select(hog)
+
 save(all_res_gene,all_res_sp,file="01_output_processed_data/all_res_allgenes.RDat")
