@@ -101,11 +101,14 @@ zf_trans_table <- zf_ens_to_entrezgene %>%
 #save biomart results
 save(gg_ens_to_entrezgene, zf_ens_to_entrezgene, hs_ens_to_entrezgene, gg_trans_table, zf_trans_table, file="02_output_annotated_data/biomart_translation_tables.Rdat")
 
+#######Load version from submitted paper, human annotations seemed to have changed a bit since then
+load("Manuscript/dryad_submission_09_26_18/R_data_and_scripts/02_output_annotated_data/biomart_translation_tables.Rdat")
+
 ##########Create combined dataset of all hog results, chicken and zebra finch annotations. Use the coalesce() function to replace missing chicken annotations with zebra finch. Note that this results in multiples in the case of several matches. For now keeping to make sure the highest possible number of matches with mammal dataset. Will get distinct values before analyses.
 all_res_gene_zf_hs <- all_res_gene_ncbi %>%
   left_join(gg_trans_table,by="entrezgene") %>%
   left_join(zf_trans_table,by="entrezgene_zf") %>%
-  mutate(entrezgene_hs = coalesce(entrezgene_hs.x,entrezgene_hs.y), ensembl_gene_id_hs = coalesce(hsapiens_homolog_ensembl_gene.x,hsapiens_homolog_ensembl_gene.y))
+  mutate(entrezgene_hs = coalesce(entrezgene_hs.x,entrezgene_hs.y), ensembl_gene_id_hs = dplyr::coalesce(hsapiens_homolog_ensembl_gene.x,hsapiens_homolog_ensembl_gene.y))
 write_delim(all_res_gene_zf_hs,path="02_output_annotated_data/raw_results_genetrees_all_annotations.csv",delim=",")
 
 all_res_sp_zf_hs <- all_res_sp_ncbi %>%

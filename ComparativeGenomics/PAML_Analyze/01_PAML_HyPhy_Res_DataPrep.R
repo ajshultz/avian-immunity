@@ -324,9 +324,10 @@ all_res_sp <- paml_pval_allgenes_sp %>%
 align_lengths <- align_lengths %>%
   mutate(hog = as.character(hog))
 
-all_res_gene %>%
-  left_join(align_lengths) %>%
-  filter(is.na(length)) %>%
-  dplyr::select(hog)
+all_res_gene <- all_res_gene %>%
+  left_join(align_lengths)
+
+all_res_sp <- all_res_sp %>%
+  left_join(align_lengths)
 
 save(all_res_gene,all_res_sp,file="01_output_processed_data/all_res_allgenes.RDat")
