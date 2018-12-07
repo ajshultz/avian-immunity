@@ -34,7 +34,7 @@ mammal_clean <- all_res_sp_zf_hs %>%
 #Create bird dataset with simplified results (BUSTED only to ensure direct comparisons with mammals), plus note all genes sig with all tests
 birds<-all_res_sp_zf_hs %>%
   mutate(sig_all = if_else(FDRPval_m1m2 < 0.05 & FDRPval_m2m2a < 0.05 & FDRPval_m7m8 < 0.05 & FDRPval_m8m8a < 0.05 & FDRPval_busted < 0.05, TRUE,FALSE)) %>%
-  dplyr::select(entrezgene,entrezgene_hs,ensembl_gene_id_hs,hog,pval_busted:FDRPval_busted,sig_all)
+  dplyr::select(entrezgene,entrezgene_hs,ensembl_gene_id_hs,hog,Omega_m0,pval_busted:FDRPval_busted,sig_all)
 
 #Combine bird and mammal datasets, get -log10 pvalues and qvalues (only consider genes in both datasets)
 imm<-full_join(mammal_clean, birds) %>%
@@ -53,6 +53,13 @@ write_csv(imm,path = "05_output_bird_mammal_comparison_results/bird_mammal_combi
 ###################### 
 #What proportion of genes are under selection in both birds and mammals? Is there a significant overlap?
 #####################
+
+#Exclude 20% of genes with the lowest m0 omega values (as calculated in birds)
+
+imm <- imm %>%
+  mutate(m0_rank = percent_rank(Omega_m0)) %>%
+  filter(m0_rank > 0.2)
+
 
 ########
 #Calculate numbers of genes overlapping at q<0.1 - q<-0.0001 and Fisher's exact tests for significance.
@@ -179,7 +186,7 @@ names(pathway_colors) <- c(sig_pathways,not_sig_pathways)
 #Identify significant q values
 enrich_res <- enrich_res %>%
   mutate(qvalue = round(qvalue,2)) %>%
-  mutate(sig_qvals = if_else(qvalue<=0.1,1,0)) 
+  mutate(sig_qvals = if_else(qvalue<=0.2,1,0)) 
 
 #Plot enrichment values for pathways sig in birds colored, all other pathways in grey. Plot for each q-value and connect with lines
 enrich_res %>%

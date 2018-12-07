@@ -226,3 +226,7 @@ ggplot(all_res_gene_ncbi,aes(sig_busted,prop_sel.n)) +
   ylab("prop significant lineages") +
   theme_bw()
 ggsave("03_output_general_stats/busted_bsrel_genetree_sign_prop.pdf",height=5,width=5)
+
+
+#Compare the alingment lengths - correlation with log(pvalue)?
+all_res
