@@ -229,4 +229,20 @@ ggsave("03_output_general_stats/busted_bsrel_genetree_sign_prop.pdf",height=5,wi
 
 
 #Compare the alingment lengths - correlation with log(pvalue)?
-all_res
+all_res %>%
+ mutate(pval_busted = ifelse(pval_busted==0,1e-18,pval_busted)) %>%
+  ggplot(aes(length,log(pval_busted))) +
+  geom_point(alpha=.1) +
+  facet_wrap(~dataset)
+cor.test(all_res$length,log(all_res$pval_busted))
+
+all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
+  ggplot(aes(sig_all,length)) +
+  geom_violin() +
+  facet_wrap(~dataset)
+
+all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
+  group_by(dataset,sig_all) %>%
+  summarize(median_length =median(length))
