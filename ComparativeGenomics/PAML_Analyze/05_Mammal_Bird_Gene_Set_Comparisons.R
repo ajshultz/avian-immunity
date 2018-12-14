@@ -34,7 +34,7 @@ mammal_clean <- all_res_sp_zf_hs %>%
 #Create bird dataset with simplified results (BUSTED only to ensure direct comparisons with mammals), plus note all genes sig with all tests
 birds<-all_res_sp_zf_hs %>%
   mutate(sig_all = if_else(FDRPval_m1m2 < 0.05 & FDRPval_m2m2a < 0.05 & FDRPval_m7m8 < 0.05 & FDRPval_m8m8a < 0.05 & FDRPval_busted < 0.05, TRUE,FALSE)) %>%
-  dplyr::select(entrezgene,entrezgene_hs,ensembl_gene_id_hs,hog,Omega_m0,pval_busted:FDRPval_busted,sig_all)
+  dplyr::select(entrezgene,entrezgene_hs,ensembl_gene_id_hs,hog,Omega_m0,pval_busted:FDRPval_busted,sig_all,length)
 
 #Combine bird and mammal datasets, get -log10 pvalues and qvalues (only consider genes in both datasets)
 imm<-full_join(mammal_clean, birds) %>%
@@ -56,7 +56,7 @@ write_csv(imm,path = "05_output_bird_mammal_comparison_results/bird_mammal_combi
 
 #Exclude 20% of genes with the lowest m0 omega values (as calculated in birds)
 
-imm <- imm %>%
+imm_no20 <- imm %>%
   mutate(m0_rank = percent_rank(Omega_m0)) %>%
   filter(m0_rank > 0.2)
 
@@ -67,20 +67,41 @@ qvals <- c(0.1,0.01,0.001,0.0001)
 
 comp_propsig <- matrix(nrow=4,ncol=11)
 
+#Also calculate whether or not there are significant differences in gene lengths
+length_diff <- matrix(nrow=4,ncol=)
+
 for (i in 1:length(qvals)){
 
   comp_propsig[i,1] <- qvals[i]
   
   #Fisher's exact tests
-  comp_propsig[i,2:9] <- imm %>% with(., table(mammal_q < qvals[i], bird_q < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[i,2:9] <- imm_no20 %>% with(., table(mammal_q < qvals[i], bird_q < qvals[i])) %>% fisher.test %>% unlist
 
   #number of genes in each category
-  comp_propsig[i,10] <- imm %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>% summarize(n()) %>% pull
+  comp_propsig[i,10] <- imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>% summarize(n()) %>% pull
   
   #number of genes significant in both in each category
-  comp_propsig[i,11] <- imm %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
+  comp_propsig[i,11] <- imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
     filter(mammal_q < qvals[i], bird_q < qvals[i]) %>%
     summarize(n()) %>% pull
+  
+  
+  imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
+    mutate(sig_cat = case_when(mammal_q < qvals[i] & bird_q < qvals[i] ~ "birds_mammals",
+                               mammal_q >= qvals[i] & bird_q < qvals[i] ~ "birds_only",
+                               mammal_q >= qvals[i] & bird_q >= qvals[i] ~ "not_sig",
+                               mammal_q < qvals[i] & bird_q >= qvals[i] ~ "mammals_only")) %>%
+  ggplot(aes(sig_cat,length)) +
+    geom_boxplot()
+  ggsave(paste0("05_output_bird_mammal_comparison_results/gene_length_by_sig_boxplot_",qvals[i],".pdf"),width=7,height=5)
+  
+  imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
+   filter(bird_q < qvals[i]) %>%
+    mutate(sig_cat = case_when(mammal_q < qvals[i] & bird_q < qvals[i] ~ "birds_mammals",
+                               mammal_q >= qvals[i] & bird_q < qvals[i] ~ "birds_only")) %>%
+    dplyr::select(sig_cat,length,hog) %>%
+    spread(sig_cat,length) %>%
+    with(.,wilcox.test(`birds_mammals`,`birds_only`))
 
   
   colnames(comp_propsig) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both")

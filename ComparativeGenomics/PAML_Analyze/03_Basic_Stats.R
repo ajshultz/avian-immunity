@@ -230,17 +230,24 @@ ggsave("03_output_general_stats/busted_bsrel_genetree_sign_prop.pdf",height=5,wi
 
 #Compare the alingment lengths - correlation with log(pvalue)?
 all_res %>%
- mutate(pval_busted = ifelse(pval_busted==0,1e-18,pval_busted)) %>%
-  ggplot(aes(length,log(pval_busted))) +
-  geom_point(alpha=.1) +
+ mutate(FDRPval_busted = ifelse(FDRPval_busted==0,1e-16,FDRPval_busted)) %>%
+  ggplot(aes(length,log(FDRPval_busted))) +
+  geom_point(alpha=.01) +
   facet_wrap(~dataset)
-cor.test(all_res$length,log(all_res$pval_busted))
+
+sink("03_output_general_stats/spearman_corr_test_alignment_length_FDRpval_Busted.txt")
+all_res_no0s <- all_res %>%
+  mutate(FDRPval_busted = ifelse(FDRPval_busted==0,1e-16,FDRPval_busted))
+cor.test(all_res_no0s$length,log(all_res_no0s$FDRPval_busted),method = "spearman")
+sink()
 
 all_res %>%
   mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
   ggplot(aes(sig_all,length)) +
   geom_violin() +
-  facet_wrap(~dataset)
+  facet_wrap(~dataset) +
+  xlab("significant all tests") +
+  ylab("alignment length")
 
 all_res %>%
   mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%

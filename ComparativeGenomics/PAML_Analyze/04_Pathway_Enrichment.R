@@ -264,3 +264,56 @@ all_genes_cnet$theme$text$size=10
 all_genes_cnet
 ggsave("04_output_pathway_results/human_genetree_qval0.1_cnetplot.pdf",width=12,height=12)
 
+
+
+#Is there any difference in gene lengths by pathway?
+
+#Use all tested genes as enrichment set, to use gene output from clusterProfiler to grab all genes belonging in a given pathway
+all_tested_gene <- all_res_gene_ncbi %>%
+  filter(!is.na(FDRPval_m1m2) & !is.na(FDRPval_m2m2a) & !is.na(FDRPval_m7m8) & !is.na(FDRPval_m8m8a) & !is.na(FDRPval_busted)) %>%
+  filter(!is.na(entrezgene)) %>%
+  pull(entrezgene)
+
+all_tested_sp <- all_res_sp_ncbi %>%
+  filter(!is.na(FDRPval_m1m2) & !is.na(FDRPval_m2m2a) & !is.na(FDRPval_m7m8) & !is.na(FDRPval_m8m8a) & !is.na(FDRPval_busted)) %>%
+  filter(!is.na(entrezgene)) %>%
+  pull(entrezgene)
+
+#Chicken pathway enrichemnt tests:
+all_genes_testing <- enrichKEGG(all_tested_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
+
+all_genes_pathways_lengths <- all_genes_testing %>% as.data.frame %>%
+  as.tibble %>%
+  separate_rows(geneID) %>%
+  left_join(all_res_gene_ncbi,by=c("geneID" = "entrezgene")) %>%
+  dplyr::select(ID,Description,geneID,length)
+  
+sig_pathways <- all_genes_k$Description
+
+all_genes_pathways_lengths_median <- all_genes_pathways_lengths %>%
+  group_by(Description) %>%
+  summarize(median_length = median(length),sd_length = sd(length)) %>%
+  arrange(desc(median_length)) %>%
+  mutate(sig_pathway = if_else(Description %in% sig_pathways,TRUE,FALSE)) %>%
+  print(n=150)
+
+write_csv(all_genes_pathways_lengths_median,"04_output_pathway_results/chicken_genetree_pathway_lengths.csv")
+
+#Test for differences in median length between pathways identified as being significantly enriched in the "immune and signaling" or "recombination and DNA repair" KEGG categories vs. all other categories.
+immune <- c("Cytokine-cytokine receptor interaction","Influenza A","Necroptosis","ECM-receptor interaction","Herpes simplex infection", "Toll-like receptor signaling pathway","Apoptosis","Phagosome","Cell adhesion molecules (CAMs)","RIG-I-like receptor signaling pathway")
+recomb <- c("Fanconi anemia pathway","Homologous recombination","Base excision repair","Non-homologous end-joining","Mismatch repair")
+
+all_genes_pathways_lengths_median <- all_genes_pathways_lengths_median %>%
+  mutate(immune = if_else(Description %in% immune,TRUE,FALSE),
+         recomb = if_else(Description %in% recomb,TRUE,FALSE))
+
+
+sink("04_output_pathway_results/chicken_genetree_mann_whitney_for_alignment_length.txt")
+#Immune pathways
+with(all_genes_pathways_lengths_median,wilcox.test(median_length~immune))
+
+#Recombination pathways
+with(all_genes_pathways_lengths_median,wilcox.test(median_length~recomb))
+sink()
+
+
