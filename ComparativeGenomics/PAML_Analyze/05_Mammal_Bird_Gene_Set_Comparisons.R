@@ -67,9 +67,6 @@ qvals <- c(0.1,0.01,0.001,0.0001)
 
 comp_propsig <- matrix(nrow=4,ncol=11)
 
-#Also calculate whether or not there are significant differences in gene lengths
-length_diff <- matrix(nrow=4,ncol=)
-
 for (i in 1:length(qvals)){
 
   comp_propsig[i,1] <- qvals[i]
@@ -85,24 +82,15 @@ for (i in 1:length(qvals)){
     filter(mammal_q < qvals[i], bird_q < qvals[i]) %>%
     summarize(n()) %>% pull
   
+  #Logistic regression to include the alignment length to identify whether the overlap in bird and mammal results are driven by alignment length
+  sink(paste0("05_output_bird_mammal_comparison_results/bird_mammal_sig_align_length_logistic_regression_sig_",qvals[i],".txt"))
+  imm_test <- imm_no20 %>%
+    mutate(mammal_sig = if_else(mammal_q<qvals[i],1,0),
+           bird_sig = if_else(bird_q<qvals[i],1,0))
   
-  imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
-    mutate(sig_cat = case_when(mammal_q < qvals[i] & bird_q < qvals[i] ~ "birds_mammals",
-                               mammal_q >= qvals[i] & bird_q < qvals[i] ~ "birds_only",
-                               mammal_q >= qvals[i] & bird_q >= qvals[i] ~ "not_sig",
-                               mammal_q < qvals[i] & bird_q >= qvals[i] ~ "mammals_only")) %>%
-  ggplot(aes(sig_cat,length)) +
-    geom_boxplot()
-  ggsave(paste0("05_output_bird_mammal_comparison_results/gene_length_by_sig_boxplot_",qvals[i],".pdf"),width=7,height=5)
-  
-  imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
-   filter(bird_q < qvals[i]) %>%
-    mutate(sig_cat = case_when(mammal_q < qvals[i] & bird_q < qvals[i] ~ "birds_mammals",
-                               mammal_q >= qvals[i] & bird_q < qvals[i] ~ "birds_only")) %>%
-    dplyr::select(sig_cat,length,hog) %>%
-    spread(sig_cat,length) %>%
-    with(.,wilcox.test(`birds_mammals`,`birds_only`))
-
+  gl_res <- glm("mammal_sig ~ bird_sig*length", family="binomial",data=imm_test)
+  print(summary(gl_res))
+  sink()
   
   colnames(comp_propsig) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both")
  
