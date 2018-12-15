@@ -103,7 +103,6 @@ bsrel_sp_omega_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   gather(sp,omega,-hog) %>%
   mutate(hog=paste0("hog_",hog))
 
-
 #Extract nubmer rate classes values (for second rate class)
 bsrel_sp_rate_classes_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "rate_classes") %>%
@@ -112,8 +111,9 @@ bsrel_sp_rate_classes_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   gather(sp,rate_classes,-hog) %>%
   mutate(hog=paste0("hog_",hog))
 
-#Set weights of genes not identified as being under selection to 0 (pval > 0.05) and weights of genes identified as having one rate class to 0.
 #Pull out the weights (proportion of sites under selection)
+#Set weights of genes not identified as being under selection to 0 (pval > 0.05) and weights of genes identified as having one rate class to 0, do the same with omega. Combene all parameters into one tibble
+#Set cap of omega value to 100
 bsrel_sp_all_params_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   filter(pval_type == "weight") %>%
   separate(hog_treenum,into=c("hog","treenum")) %>%
@@ -124,10 +124,31 @@ bsrel_sp_all_params_res_gene_raw <- bsrel_sp_pval_res_gene %>%
   left_join(bsrel_sp_omega_res_gene_raw) %>%
   left_join(bsrel_sp_rate_classes_res_gene_raw) %>%
   mutate(weight_sig = if_else(rate_classes == 1,0,weight)) %>%
-  mutate(weight_sig = if_else(pval > 0.05,0,weight)) %>%
+  mutate(weight_sig = if_else(pval > 0.05,0,weight_sig)) %>%
   mutate(omega_sig = if_else(rate_classes == 1,0,omega)) %>%
-  mutate(omega_sig = if_else(pval > 0.05,0,omega))
+  mutate(omega_sig = if_else(pval > 0.05,0,omega_sig)) %>%
+  mutate(omega_sig = if_else(omega_sig > 10000,10000,omega_sig)) %>%
+  mutate(omega_weight_sig = omega_sig * weight_sig)
 
+bsrel_sp_all_params_res_gene_raw %>%
+  filter(omega_sig > 0) %>%
+  ggplot(aes(log(omega_sig))) +
+  geom_histogram()
+
+bsrel_sp_all_params_res_gene_raw %>%
+  filter(weight_sig > 0) %>%
+  ggplot(aes(weight_sig)) +
+  geom_histogram()
+
+bsrel_sp_all_params_res_gene_raw %>%
+  filter(omega_sig > 0, weight_sig > 0) %>%
+  ggplot(aes(log(omega_weight_sig),log(pval))) +
+  geom_point(alpha=0.01)
+
+bsrel_sp_all_params_res_gene_raw_trunc <- bsrel_sp_all_params_res_gene_raw %>%
+  filter(omega_sig > 0, weight_sig > 0) %>%
+summary(lm(log(omega_weight_sig)~log(pval),data=bsrel_sp_all_params_res_gene_raw_trunc))
+  
 bsrel_sp_weight_res_gene_raw <- bsrel_sp_all_params_res_gene_raw %>%
   dplyr::select(sp,hog,weight_sig) %>%
   spread(hog,weight_sig) %>%
@@ -155,6 +176,36 @@ bsrel_sp_pval_res_gene_raw <- bsrel_sp_all_params_res_gene_raw %>%
   spread(hog,pval)  %>%
   mutate_at(vars(-sp),rep_na_mean)
 
+
+save(bsrel_sp_all_params_res_gene_raw, bsrel_sp_omega_res_gene_trans, bsrel_sp_weight_res_gene_raw, bsrel_sp_pval_res_gene_raw, file = "06_output_cluster_by_species/parameter_datasets_transformed.Rdat")
+#################Playing around with plotting omega and weight
+bsrel_sp_all_params_res_gene_raw %>%
+  arrange(desc(omega_sig))
+
+bsrel_sp_all_params_res_gene_raw %>%
+  filter(omega_sig == 1e26) %>%
+  mutate(omega_sig = ifelse(omega_sig == 0, 1, omega_sig)) %>%
+  ggplot(aes(log(pval),log(omega_sig))) +
+  geom_bin2d()
+
+bsrel_sp_all_params_res_gene_raw %>%
+  filter(omega_sig != 1e26) %>%
+  filter(omega_sig != 0) %>%
+  ggplot(aes(log(pval),log(omega_sig))) +
+  geom_point(alpha=0.01)
+
+bsrel_sp_all_params_res_gene_raw %>%
+  filter(weight_sig != 0) %>%
+  ggplot(aes(log(pval),weight_sig)) +
+  geom_point(alpha=0.01)
+
+bsrel_sp_all_params_res_gene_raw %>%
+  filter(omega < 9000) %>%
+  mutate(weight_omega_sig = weight_sig * omega_sig) %>%
+  filter(weight_omega_sig != 0) %>%
+  ggplot(aes(log(pval),weight_omega_sig)) +
+  geom_point(alpha=0.01)
+#########################
 
 #Which hogs are missing all data?
 hogs_to_keep <- bsrel_sp_pval_res_gene %>%
