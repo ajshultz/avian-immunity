@@ -237,19 +237,62 @@ all_res %>%
 
 sink("03_output_general_stats/spearman_corr_test_alignment_length_FDRpval_Busted.txt")
 all_res_no0s <- all_res %>%
+  filter(dataset=="gene") %>%
   mutate(FDRPval_busted = ifelse(FDRPval_busted==0,1e-16,FDRPval_busted))
 cor.test(all_res_no0s$length,log(all_res_no0s$FDRPval_busted),method = "spearman")
-sink()
+all_res_no0s <- all_res %>%
+  filter(dataset=="species") %>%
+  mutate(FDRPval_busted = ifelse(FDRPval_busted==0,1e-16,FDRPval_busted))
+cor.test(all_res_no0s$length,log(all_res_no0s$FDRPval_busted),method = "spearman")
 
+print("Manhattan Whitney U-test")
+print("gene tree")
 all_res %>%
   mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
-  ggplot(aes(sig_all,length)) +
-  geom_violin() +
-  facet_wrap(~dataset) +
-  xlab("significant all tests") +
-  ylab("alignment length")
+  filter(dataset=="gene") %>%
+  with(.,wilcox.test(length~sig_all))
+print("species tree")
+all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
+  filter(dataset=="species") %>%
+  with(.,wilcox.test(length~sig_all))
 
 all_res %>%
   mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
   group_by(dataset,sig_all) %>%
   summarize(median_length =median(length))
+sink()
+
+all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
+  ggplot(aes(sig_all,length)) +
+  geom_violin(fill = "#44AA99") +
+  facet_wrap(~dataset) +
+  xlab("significant all tests") +
+  ylab("alignment length")
+ggsave("03_output_general_stats/alignment_length_by_signficance.pdf")
+
+
+#Is there a difference tree length variance between species trees and gene trees?
+
+all_res %>%
+  group_by(dataset) %>%
+  summarize(SD_tree_length= sd(treelen_m0),median_tree_len = median(treelen_m0))
+
+all_res %>%
+  ggplot(aes(treelen_m0)) +
+  geom_density() +
+  facet_wrap(~dataset)
+ggsave("03_output_general_stats/tree_length_gene_vs_species_density.pdf")
+
+all_res %>%
+  filter(treelen_m0<30) %>%
+  ggplot(aes(treelen_m0)) +
+  geom_histogram() +
+  facet_wrap(~dataset)
+ggsave("03_output_general_stats/tree_length_gene_vs_species_histogram_zoomed.pdf")
+
+tree_len_gene <- all_res %>% filter(dataset=="gene") %>% pull(treelen_m0)
+tree_len_sp <- all_res %>% filter(dataset=="species") %>% pull(treelen_m0)
+ks.test(tree_len_gene,tree_len_sp)
+wilcox.test(tree_len_gene,tree_len_sp)
