@@ -62,29 +62,39 @@ imm_no20 <- imm %>%
 
 
 ########
-#Calculate numbers of genes overlapping at q<0.1 - q<-0.0001 and Fisher's exact tests for significance.
+#Calculate numbers of genes overlapping at q<0.1 - q<-0.0001 and Fisher's exact tests for significance. Perform both with all genes and with 20% most constrained genes removed.
 qvals <- c(0.1,0.01,0.001,0.0001)
 
 comp_propsig <- matrix(nrow=4,ncol=11)
+comp_propsig_no20 <- matrix(nrow=4,ncol=11)
+
+log_reg_res_list <- list()
+log_reg_res_list_no20 <- list()
 
 for (i in 1:length(qvals)){
 
   comp_propsig[i,1] <- qvals[i]
+  comp_propsig_no20[i,1] <- qvals[i]
   
   #Fisher's exact tests
-  comp_propsig[i,2:9] <- imm_no20 %>% with(., table(mammal_q < qvals[i], bird_q < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig[i,2:9] <- imm %>% with(., table(mammal_q < qvals[i], bird_q < qvals[i])) %>% fisher.test %>% unlist
+  comp_propsig_no20[i,2:9] <- imm_no20 %>% with(., table(mammal_q < qvals[i], bird_q < qvals[i])) %>% fisher.test %>% unlist
 
   #number of genes in each category
-  comp_propsig[i,10] <- imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>% summarize(n()) %>% pull
+  comp_propsig[i,10] <- imm %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>% summarize(n()) %>% pull
+  comp_propsig_no20[i,10] <- imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>% summarize(n()) %>% pull
   
   #number of genes significant in both in each category
-  comp_propsig[i,11] <- imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
+  comp_propsig[i,11] <- imm %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
+    filter(mammal_q < qvals[i], bird_q < qvals[i]) %>%
+    summarize(n()) %>% pull
+  comp_propsig_no20[i,11] <- imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
     filter(mammal_q < qvals[i], bird_q < qvals[i]) %>%
     summarize(n()) %>% pull
   
   #Logistic regression to include the alignment length to identify whether the overlap in bird and mammal results are driven by alignment length
   sink(paste0("05_output_bird_mammal_comparison_results/bird_mammal_sig_align_length_logistic_regression_sig_",qvals[i],".txt"))
-  imm_test <- imm_no20 %>%
+  imm_test <- imm %>%
     mutate(mammal_sig = if_else(mammal_q<qvals[i],1,0),
            bird_sig = if_else(bird_q<qvals[i],1,0))
   
@@ -92,7 +102,40 @@ for (i in 1:length(qvals)){
   print(summary(gl_res))
   sink()
   
+  sink(paste0("05_output_bird_mammal_comparison_results/bird_mammal_sig_align_length_logistic_regression_no20_sig_",qvals[i],".txt"))
+  imm_test <- imm_no20 %>%
+    mutate(mammal_sig = if_else(mammal_q<qvals[i],1,0),
+           bird_sig = if_else(bird_q<qvals[i],1,0))
+  
+  gl_res <- glm("mammal_sig ~ bird_sig*length", family="binomial",data=imm_test)
+  print(summary(gl_res)$coeff)
+  sink()
+  
+  imm_test <- imm %>%
+    mutate(mammal_sig = if_else(mammal_q<qvals[i],1,0),
+           bird_sig = if_else(bird_q<qvals[i],1,0))
+  
+  gl_res <- glm("mammal_sig ~ bird_sig*length", family="binomial",data=imm_test)
+  log_reg_res_list[[i]] <- summary(gl_res)$coeff %>%
+    as.data.frame %>%
+    rownames_to_column %>%
+    as.tibble %>%
+    mutate(qvalue = qvals[i])
+  
+  imm_test <- imm_no20 %>%
+    mutate(mammal_sig = if_else(mammal_q<qvals[i],1,0),
+           bird_sig = if_else(bird_q<qvals[i],1,0))
+  
+  gl_res <- glm("mammal_sig ~ bird_sig*length", family="binomial",data=imm_test)
+  log_reg_res_list_no20[[i]] <- summary(gl_res)$coeff %>%
+    as.data.frame %>%
+    rownames_to_column %>%
+    as.tibble %>%
+    mutate(qvalue = qvals[i])
+
+  
   colnames(comp_propsig) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both")
+  colnames(comp_propsig_no20) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both")
  
 }
 
@@ -103,6 +146,21 @@ comp_propsig_clean <- comp_propsig %>%
   dplyr::select(qval,n.genes,n.sig.both,odds.ratio,conf.lower,conf.upper,p.value)
 
 write_csv(comp_propsig_clean,path="05_output_bird_mammal_comparison_results/mammal_bird_prop_selected_test_allq_overall_overlap.csv")
+
+comp_propsig_clean_no20 <- comp_propsig_no20 %>%
+  as.tibble %>%
+  mutate(p.value=round(as.numeric(p.value),digits = 4),odds.ratio=round(as.numeric(estimated.odds.ratio),digits=2), conf.lower=round(as.numeric(conf.int1),digits=3), conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
+  dplyr::select(qval,n.genes,n.sig.both,odds.ratio,conf.lower,conf.upper,p.value)
+
+write_csv(comp_propsig_clean_no20,path="05_output_bird_mammal_comparison_results/mammal_bird_prop_selected_test_allq_overall_overlap_excluding20perc.csv")
+
+log_reg_res <- log_reg_res_list %>%
+  bind_rows
+write_csv(log_reg_res,path="05_output_bird_mammal_comparison_results/bird_mammal_sig_align_length_logistic_regression_all_res.csv")
+log_reg_res_no20 <- log_reg_res_list_no20 %>%
+  bind_rows
+write_csv(log_reg_res_no20,path="05_output_bird_mammal_comparison_results/bird_mammal_sig_align_length_logistic_regression_excluding20perc_all_res.csv")
+
 
 #Create vector of asterisks to include in plots:
 comp_propsig_clean <- comp_propsig_clean %>%
@@ -126,6 +184,18 @@ comp_propsig_clean %>%
   ylim(0,8) +
   theme(axis.title = element_text(size=24), axis.text = element_text(size=18))
 ggsave(filename = "05_output_bird_mammal_comparison_results/mammal_bird_odds_ratio_selboth.pdf",width = 8, height=5)
+
+comp_propsig_clean_no20 %>%
+  ggplot(aes(factor(qval,levels=c("1e-04","0.001","0.01","0.1")),odds.ratio)) +
+  geom_point(size=8,position=position_dodge(width=0.9),col="black") +
+  geom_linerange(aes(factor(qval,levels=c("0.1","0.01","0.001","1e-04")),ymin=conf.lower,ymax=conf.upper),size=2,col="black") +
+  geom_hline(aes(yintercept = 1),size=2,linetype="dashed",col="black") +
+  scale_x_discrete(labels=c("0.0001","0.001","0.01","0.1")) +
+  xlab("q-value") +
+  ylab("odds ratio") +
+  ylim(0,8) +
+  theme(axis.title = element_text(size=24), axis.text = element_text(size=18))
+ggsave(filename = "05_output_bird_mammal_comparison_results/mammal_bird_odds_ratio_selboth_no20.pdf",width = 8, height=5)
 
 ######################################################################################## 
 ###Is there any patheway enrichment for which genes are under selection in both lineages?
