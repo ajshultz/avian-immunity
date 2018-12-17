@@ -126,7 +126,9 @@ bsrel_sp_all_params_res_sp_raw <- bsrel_sp_pval_res_sp %>%
   mutate(weight_sig = if_else(rate_classes == 1,0,weight)) %>%
   mutate(weight_sig = if_else(pval > 0.05,0,weight)) %>%
   mutate(omega_sig = if_else(rate_classes == 1,0,omega)) %>%
-  mutate(omega_sig = if_else(pval > 0.05,0,omega))
+  mutate(omega_sig = if_else(pval > 0.05,0,omega)) %>%
+  mutate(omega_sig = if_else(omega_sig > 10000,10000,omega_sig)) %>%
+  mutate(omega_weight_sig = omega_sig * weight_sig)
 
 bsrel_sp_weight_res_sp_raw <- bsrel_sp_all_params_res_sp_raw %>%
   dplyr::select(sp,hog,weight_sig) %>%

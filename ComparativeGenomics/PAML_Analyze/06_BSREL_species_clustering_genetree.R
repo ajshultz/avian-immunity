@@ -283,7 +283,7 @@ summary(pca_weights)
 write_csv(data.frame(pca_pvals$rotation),"06_output_cluster_by_species/pca_gene_pvals_loadings.csv")
 write_csv(data.frame(pca_pvals$x),"06_output_cluster_by_species/pca_gene_pvals_coordinates.csv")
 
-save(pca_pvals,bsrel_sp_pval_res_gene_raw, file="06_output_cluster_by_species/pca_sp_pvals_all_res.rDat")
+save(pca_pvals,bsrel_sp_pval_res_gene_raw, file="06_output_cluster_by_species/pca_gene_pvals_all_res.rDat")
 
 #Save omega results
 write_csv(data.frame(pca_omega$rotation),"06_output_cluster_by_species/pca_gene_omega_loadings.csv")
