@@ -229,40 +229,28 @@ ggsave("03_output_general_stats/busted_bsrel_genetree_sign_prop.pdf",height=5,wi
 
 
 #Compare the alingment lengths - correlation with log(pvalue)?
-all_res %>%
- mutate(FDRPval_busted = ifelse(FDRPval_busted==0,1e-16,FDRPval_busted)) %>%
-  ggplot(aes(length,log(FDRPval_busted))) +
-  geom_point(alpha=.01) +
-  facet_wrap(~dataset)
+#Conduct logistic regression for the chance of a gene being significant in all tests by its alignment length
+all_res_gene_sigcat <- all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),1,0)) %>%
+  filter(dataset=="gene")
 
-sink("03_output_general_stats/spearman_corr_test_alignment_length_FDRpval_Busted.txt")
-all_res_no0s <- all_res %>%
-  filter(dataset=="gene") %>%
-  mutate(FDRPval_busted = ifelse(FDRPval_busted==0,1e-16,FDRPval_busted))
-cor.test(all_res_no0s$length,log(all_res_no0s$FDRPval_busted),method = "spearman")
-all_res_no0s <- all_res %>%
-  filter(dataset=="species") %>%
-  mutate(FDRPval_busted = ifelse(FDRPval_busted==0,1e-16,FDRPval_busted))
-cor.test(all_res_no0s$length,log(all_res_no0s$FDRPval_busted),method = "spearman")
+all_res_sp_sigcat <- all_res  %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),1,0)) %>%
+  filter(dataset=="species")
 
-print("Manhattan Whitney U-test")
-print("gene tree")
-all_res %>%
-  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
-  filter(dataset=="gene") %>%
-  with(.,wilcox.test(length~sig_all))
-print("species tree")
-all_res %>%
-  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
-  filter(dataset=="species") %>%
-  with(.,wilcox.test(length~sig_all))
+length_logreg_gene <- glm("sig_all~length",family="binomial",data=all_res_gene_sigcat)
+length_logreg_sp <- glm("sig_all~length",family="binomial",data=all_res_sp_sigcat)
 
-all_res %>%
-  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
-  group_by(dataset,sig_all) %>%
-  summarize(median_length =median(length))
+save(length_logreg_gene,length_logreg_sp,file="03_output_general_stats/alignment_length_logistic_regression_models.Rdat")
+
+sink("03_output_general_stats/alignment_length_logistic_regression_summaries.txt")
+print("Gene Tree Results")
+summary(length_logreg_gene)
+print("Species Tree Results")
+summary(length_logreg_sp)
 sink()
 
+#Create violin plots
 all_res %>%
   mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="1",false="0")) %>%
   ggplot(aes(sig_all,length)) +
@@ -291,8 +279,3 @@ all_res %>%
   geom_histogram() +
   facet_wrap(~dataset)
 ggsave("03_output_general_stats/tree_length_gene_vs_species_histogram_zoomed.pdf")
-
-tree_len_gene <- all_res %>% filter(dataset=="gene") %>% pull(treelen_m0)
-tree_len_sp <- all_res %>% filter(dataset=="species") %>% pull(treelen_m0)
-ks.test(tree_len_gene,tree_len_sp)
-wilcox.test(tree_len_gene,tree_len_sp)
