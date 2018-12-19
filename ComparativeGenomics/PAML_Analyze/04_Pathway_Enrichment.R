@@ -279,9 +279,10 @@ all_tested_sp <- all_res_sp_ncbi %>%
   filter(!is.na(entrezgene)) %>%
   pull(entrezgene)
 
-#Chicken pathway enrichemnt tests:
+#Chicken pathway enrichemnt tests, use all_tested_gene as both test and background set to extract all genes involved in each patwhay:
 all_genes_testing <- enrichKEGG(all_tested_gene,organism="gga",pvalueCutoff=1,pAdjustMethod="BH",qvalueCutoff=1,universe=all_tested_gene,keyType="ncbi-geneid")
 
+#Add pathway lengths
 all_genes_pathways_lengths <- all_genes_testing %>% as.data.frame %>%
   as.tibble %>%
   separate_rows(geneID) %>%
@@ -290,12 +291,44 @@ all_genes_pathways_lengths <- all_genes_testing %>% as.data.frame %>%
   
 sig_pathways <- all_genes_k$Description
 
+#Load in model results from script 03
+load("03_output_general_stats/alignment_length_logistic_regression_models.Rdat")
+
+#Function to predict the likelihood of a gene being under selection based on its alignment length, using the gene tree datset
+pred_length_sig <- function(align_length){
+  lik_sel <- predict(length_logreg_gene,data.frame(length=c(align_length)),type="response")
+  return(lik_sel)
+}
+
+#Perform a Fisher's exact test to determine whether the number of genes under selection for a given pathway is more than would be expected based on median gene length for that pathway. Inputs are the number of significant genes (n_sig), the number of genes expected to be under selection based on length (n_sig_length), and the number of genes in the pathway (n_genes)
+fisher_test_ngenes <- function(n_sig,n_sig_length,n_genes){
+  sig_table <- matrix(c(n_sig,(n_genes-n_sig),n_sig_length,(n_genes-n_sig_length)),nrow=2)
+  pathway_res <- fisher.test(sig_table)
+  return(pathway_res$p.value)
+  }
+
 all_genes_pathways_lengths_median <- all_genes_pathways_lengths %>%
   group_by(Description) %>%
-  summarize(median_length = median(length),sd_length = sd(length)) %>%
+  summarize(median_length = median(length),sd_length = sd(length),n_genes=n()) %>%
   arrange(desc(median_length)) %>%
   mutate(sig_pathway = if_else(Description %in% sig_pathways,TRUE,FALSE)) %>%
-  print(n=150)
+  mutate(immune = if_else(Description %in% immune,TRUE,FALSE),
+         recomb = if_else(Description %in% recomb,TRUE,FALSE)) %>%
+  mutate(chance_sig = pred_length_sig(median_length)) %>%
+  mutate(n_prob_sig = as.integer(round(chance_sig*n_genes))) %>%
+  left_join(all_genes_nocutoff_k%>%as.data.frame%>%as.tibble%>%dplyr::select(Description,n_sig=Count)) %>%
+  mutate(n_sig=ifelse(is.na(n_sig),0,as.integer(n_sig))) %>%
+  rowwise() %>%
+  mutate(sig_diff_length = fisher_test_ngenes(n_sig=n_sig,n_sig_length=n_prob_sig,n_genes=n_genes)) %>%
+  ungroup() %>%
+  arrange(desc(sig_pathway),sig_diff_length)
+
+all_genes_pathways_lengths_median %>%
+  filter(sig_pathway==TRUE)
+
+all_genes_pathways_lengths_median %>%
+  arrange(sig_diff_length) %>%
+  print(n=20)
 
 write_csv(all_genes_pathways_lengths_median,"04_output_pathway_results/chicken_genetree_pathway_lengths.csv")
 
