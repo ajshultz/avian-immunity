@@ -146,7 +146,7 @@ bsrel_sp_all_params_res_gene_raw %>%
   geom_point(alpha=0.01)
 
 bsrel_sp_all_params_res_gene_raw_trunc <- bsrel_sp_all_params_res_gene_raw %>%
-  filter(omega_sig > 0, weight_sig > 0) %>%
+  filter(omega_sig > 0, weight_sig > 0,pval!=1e-18)
 summary(lm(log(omega_weight_sig)~log(pval),data=bsrel_sp_all_params_res_gene_raw_trunc))
   
 bsrel_sp_weight_res_gene_raw <- bsrel_sp_all_params_res_gene_raw %>%
