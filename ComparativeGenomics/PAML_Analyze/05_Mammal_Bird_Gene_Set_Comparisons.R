@@ -65,8 +65,8 @@ imm_no20 <- imm %>%
 #Calculate numbers of genes overlapping at q<0.1 - q<-0.0001 and Fisher's exact tests for significance. Perform both with all genes and with 20% most constrained genes removed.
 qvals <- c(0.1,0.01,0.001,0.0001)
 
-comp_propsig <- matrix(nrow=4,ncol=11)
-comp_propsig_no20 <- matrix(nrow=4,ncol=11)
+comp_propsig <- matrix(nrow=4,ncol=12)
+comp_propsig_no20 <- matrix(nrow=4,ncol=12)
 
 log_reg_res_list <- list()
 log_reg_res_list_no20 <- list()
@@ -91,6 +91,24 @@ for (i in 1:length(qvals)){
   comp_propsig_no20[i,11] <- imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
     filter(mammal_q < qvals[i], bird_q < qvals[i]) %>%
     summarize(n()) %>% pull
+  
+  #Expected number of genes under selection in both clades
+  comp_propsig[i,12] <- imm %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
+    mutate(sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+           sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE)) %>%
+    with(.,table(sig_birds,sig_mammals)) %>%
+    chisq.test() %>%
+    .$expected %>%
+    .[2,2] %>%
+    round(.,1)  
+  comp_propsig_no20[i,12] <- imm_no20 %>% filter(!is.na(mammal_q), !is.na(bird_q)) %>%
+    mutate(sig_mammals = if_else(mammal_q<=qvals[i],TRUE,FALSE),
+           sig_birds = if_else(bird_q<=qvals[i],TRUE,FALSE)) %>%
+    with(.,table(sig_birds,sig_mammals)) %>%
+    chisq.test() %>%
+    .$expected %>%
+    .[2,2] %>%
+    round(.,1)
   
   #Logistic regression to include the alignment length to identify whether the overlap in bird and mammal results are driven by alignment length
   sink(paste0("05_output_bird_mammal_comparison_results/bird_mammal_sig_align_length_logistic_regression_sig_",qvals[i],".txt"))
@@ -134,8 +152,8 @@ for (i in 1:length(qvals)){
     mutate(qvalue = qvals[i])
 
   
-  colnames(comp_propsig) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both")
-  colnames(comp_propsig_no20) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both")
+  colnames(comp_propsig) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both","expected.sig.both")
+  colnames(comp_propsig_no20) <- c("qval","p.value","conf.int1","conf.int2","estimated.odds.ratio","null.value.odds.ratio","alternative","method","data.name","n.genes","n.sig.both","expected.sig.both")
  
 }
 
@@ -143,14 +161,14 @@ for (i in 1:length(qvals)){
 comp_propsig_clean <- comp_propsig %>%
   as.tibble %>%
   mutate(p.value=round(as.numeric(p.value),digits = 4),odds.ratio=round(as.numeric(estimated.odds.ratio),digits=2), conf.lower=round(as.numeric(conf.int1),digits=3), conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
-  dplyr::select(qval,n.genes,n.sig.both,odds.ratio,conf.lower,conf.upper,p.value)
+  dplyr::select(qval,n.genes,n.sig.both,expected.sig.both,odds.ratio,conf.lower,conf.upper,p.value)
 
 write_csv(comp_propsig_clean,path="05_output_bird_mammal_comparison_results/mammal_bird_prop_selected_test_allq_overall_overlap.csv")
 
 comp_propsig_clean_no20 <- comp_propsig_no20 %>%
   as.tibble %>%
   mutate(p.value=round(as.numeric(p.value),digits = 4),odds.ratio=round(as.numeric(estimated.odds.ratio),digits=2), conf.lower=round(as.numeric(conf.int1),digits=3), conf.upper=round(as.numeric(conf.int2),digits=3)) %>%
-  dplyr::select(qval,n.genes,n.sig.both,odds.ratio,conf.lower,conf.upper,p.value)
+  dplyr::select(qval,n.genes,n.sig.both,expected.sig.both,odds.ratio,conf.lower,conf.upper,p.value)
 
 write_csv(comp_propsig_clean_no20,path="05_output_bird_mammal_comparison_results/mammal_bird_prop_selected_test_allq_overall_overlap_excluding20perc.csv")
 
@@ -237,7 +255,8 @@ enrich_res <- enrich_res %>%
   separate(GeneRatio,into=c("sig_genes_pathway","sig_genes"),remove = F) %>%
   separate(BgRatio, into=c("bg_sig_genes_pathway","bg_sig_genes"),remove = F) %>%
   mutate(GeneRatio = as.numeric(sig_genes_pathway)/as.numeric(sig_genes)) %>%
-  mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_sig_genes_pathway)/as.numeric(bg_sig_genes)))
+  mutate(enrichment = (as.numeric(sig_genes_pathway)/as.numeric(sig_genes))/(as.numeric(bg_sig_genes_pathway)/as.numeric(bg_sig_genes))) %>%
+  mutate(expected_n_genes = (as.numeric(sig_genes)/as.numeric(bg_sig_genes)*as.numeric(bg_sig_genes_pathway)))
 
 enrich_res %>%
   write_csv("05_output_bird_mammal_comparison_results/bird_mammal_pathway_enrichment.csv")
