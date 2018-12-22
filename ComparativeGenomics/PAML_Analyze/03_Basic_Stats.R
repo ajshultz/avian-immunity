@@ -246,8 +246,16 @@ save(length_logreg_gene,length_logreg_sp,file="03_output_general_stats/alignment
 sink("03_output_general_stats/alignment_length_logistic_regression_summaries.txt")
 print("Gene Tree Results")
 summary(length_logreg_gene)
+all_res_gene_sigcat %>%
+  group_by(sig_all) %>%
+  summarize(median_length = median(length)) %>%
+  print()
 print("Species Tree Results")
 summary(length_logreg_sp)
+all_res_sp_sigcat %>%
+  group_by(sig_all) %>%
+  summarize(median_length = median(length)) %>%
+  print()
 sink()
 
 #Create violin plots
