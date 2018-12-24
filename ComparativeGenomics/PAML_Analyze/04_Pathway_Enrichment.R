@@ -323,30 +323,7 @@ all_genes_pathways_lengths_median <- all_genes_pathways_lengths %>%
   ungroup() %>%
   arrange(desc(sig_pathway),sig_diff_length)
 
-all_genes_pathways_lengths_median %>%
-  filter(sig_pathway==TRUE)
-
-all_genes_pathways_lengths_median %>%
-  arrange(sig_diff_length) %>%
-  print(n=20)
-
 write_csv(all_genes_pathways_lengths_median,"04_output_pathway_results/chicken_genetree_pathway_lengths.csv")
 
-#Test for differences in median length between pathways identified as being significantly enriched in the "immune and signaling" or "recombination and DNA repair" KEGG categories vs. all other categories.
-immune <- c("Cytokine-cytokine receptor interaction","Influenza A","Necroptosis","ECM-receptor interaction","Herpes simplex infection", "Toll-like receptor signaling pathway","Apoptosis","Phagosome","Cell adhesion molecules (CAMs)","RIG-I-like receptor signaling pathway")
-recomb <- c("Fanconi anemia pathway","Homologous recombination","Base excision repair","Non-homologous end-joining","Mismatch repair")
-
-all_genes_pathways_lengths_median <- all_genes_pathways_lengths_median %>%
-  mutate(immune = if_else(Description %in% immune,TRUE,FALSE),
-         recomb = if_else(Description %in% recomb,TRUE,FALSE))
-
-
-sink("04_output_pathway_results/chicken_genetree_mann_whitney_for_alignment_length.txt")
-#Immune pathways
-with(all_genes_pathways_lengths_median,wilcox.test(median_length~immune))
-
-#Recombination pathways
-with(all_genes_pathways_lengths_median,wilcox.test(median_length~recomb))
-sink()
 
 
