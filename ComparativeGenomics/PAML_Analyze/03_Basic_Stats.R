@@ -1,5 +1,6 @@
 setwd("~/Dropbox/BirdImmuneGeneEvolution")
 library(tidyverse)
+library(cowplot)
 
 #Load NCBI annotated dataset - output from script 02
 
@@ -174,6 +175,7 @@ ggplot(all_res,aes(Omega_m0)) +
 ggsave("03_output_general_stats/m0_Omega_distribution.pdf",width=10, height=6)
 
 
+
 all_res %>%
   mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="yes",false="no")) %>%
 ggplot(aes(sig_all,Omega_m0)) +
@@ -269,6 +271,64 @@ all_res %>%
 ggsave("03_output_general_stats/alignment_length_by_signficance.pdf")
 
 
+#Create overall summary stat plot:
+selection_omega <- all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="yes",false="no")) %>%
+  mutate(dataset=if_else(dataset=="gene","gene tree","species tree")) %>%
+  ggplot(aes(sig_all,Omega_m0,fill=dataset)) +
+  facet_wrap(~dataset) +
+  geom_violin(show.legend = F) +
+  theme_bw() +
+  xlab("under selection\nwith all tests") +
+  ylab(expression("m0 model "*omega)) +
+  scale_fill_manual(values = c("gene tree"="#44AA99","species tree"="#332288")) +
+  theme(panel.grid = element_blank())
+
+overall_omega <- all_res %>%
+  mutate(dataset=if_else(dataset=="gene","gene tree","species tree")) %>%
+  ggplot(aes(y=Omega_m0,x=dataset,fill=dataset)) +
+  geom_violin(show.legend=F) +
+  theme_bw() +
+  scale_fill_manual(values = c("gene tree"="#44AA99","species tree"="#332288")) +
+  theme(panel.grid = element_blank()) +
+  ylab(expression("m0 model "*omega))
+
+align_length <- all_res %>%
+  mutate(sig_all=if_else(condition=(FDRPval_m1m2<0.05 & FDRPval_m2m2a<0.05 & FDRPval_m7m8<0.05 & FDRPval_m8m8a<0.05 & FDRPval_busted<0.05),true="yes",false="no")) %>%
+  mutate(dataset=if_else(dataset=="gene","gene tree","species tree")) %>%
+  ggplot(aes(sig_all,length,fill=dataset)) +
+  geom_violin(show.legend=F) +
+  scale_fill_manual(values = c("gene tree"="#44AA99","species tree"="#332288")) +
+  facet_wrap(~dataset) +
+  xlab("under selection\nwith all tests") +
+  ylab("alignment length") +
+  theme_bw() +  
+  theme(panel.grid = element_blank())
+
+prop_sig_busted <- ggplot(all_res_gene_ncbi,aes(sig_busted,prop_sel.n)) +
+  geom_violin(fill="#44AA99") +
+  scale_x_discrete(labels=c("TRUE"="yes","FALSE"="no"))+
+  xlab("significant with busted\n(FDR q<0.05)") +
+  ylab("prop significant\nlineages") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+tree_legend <- all_res %>%
+  ggplot(aes(x=dataset,fill=dataset)) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values = c("gene"="#44AA99","species"="#332288"),labels=c("gene" = "gene tree", "species" = "species tree")) +
+  guides(fill=guide_legend(override.aes = list(fill= c("gene tree"="#44AA99","species tree"="#332288")))) +
+  ylim(1,2)+
+  theme_minimal()+
+  theme(line = element_blank(),
+        axis.text = element_blank(),
+        title = element_blank())
+
+plot_grid(selection_omega,overall_omega,tree_legend,align_length,prop_sig_busted,ncol=3,rel_widths=c(1.5,1,1),labels=c("A","B","","C","D"),label_size=12,label_fontface="plain")
+ggsave("03_output_general_stats/all_summary_stat_plot_with_legend.pdf",width=8,height=5)
+
+plot_grid(selection_omega,overall_omega,align_length,prop_sig_busted,ncol=2,rel_widths=c(1.5,1),labels=c("A","B","C","D"),label_size=12,label_fontface="plain")
+ggsave("03_output_general_stats/all_summary_stat_plot.pdf",width=6,height=5)
 #Is there a difference tree length variance between species trees and gene trees?
 
 all_res %>%
